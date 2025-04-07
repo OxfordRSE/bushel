@@ -1,58 +1,36 @@
-# FigShare Integration Interface
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-A Next.js application for interacting with the FigShare API, providing a user interface for managing research data repositories.
+## Getting Started
 
-## Setup
+First, run the development server:
 
 ```bash
-# Install dependencies
-bun install
-
-# Set up environment variables
-cp .env.example .env.local
-
-# Run development server
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
 bun dev
 ```
 
-## Environment Variables
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-`NEXT_PUBLIC_MOCK_FIGSHARE_API`: Set to 'true' to use mock API endpoints
-`NEXT_PUBLIC_FIGSHARE_CLIENT_ID`: Your FigShare OAuth client ID
-`NEXT_PUBLIC_APP_URL`: Application URL (e.g., http://localhost:3000)
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Development
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-Uses local mock endpoints under /api/figshare_mock
-Simulates OAuth flow locally
-Provides test data for development
+## Learn More
 
-## Production Mode
+To learn more about Next.js, take a look at the following resources:
 
-Connects to live FigShare API endpoints
-Requires valid OAuth credentials
-Uses real FigShare authentication flow
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## Project Structure
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-```plaintext
-src/
-  app/
-    api/
-      figshare_mock/  # Mock API endpoints
-    auth/
-      callback/       # OAuth callback handling
-    page.tsx         # Main application page
-  components/        # React components
-  lib/
-    config.ts        # Environment configuration
-```
+## Deploy on Vercel
 
-## UI Components
-Built using:
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-- shadcn/ui for component library
-- Tailwind CSS for styling
-- Lucide React for icons
-
-In collaboration with Claude AI's Sonnet model.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
