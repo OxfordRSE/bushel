@@ -65,8 +65,8 @@ export default function AppFlow() {
                     <div className="text-left space-y-2">
                         <p>⚠️ Some entries already exist in FigShare.</p>
                         <ul className="list-disc pl-5 text-sm text-gray-700">
-                            <li>Entry #12: Title conflict — "Mid-European Trade Routes"</li>
-                            <li>Entry #19: Title conflict — "Nascent 'Silk Road' Trade"</li>
+                            <li>Entry #12: Title conflict — &#34;Mid-European Trade Routes&#34;</li>
+                            <li>Entry #19: Title conflict — &#34;Nascent &#39;Silk Road&#39; Trade&#34;</li>
                         </ul>
                         <p className="text-sm text-gray-500">You will choose whether to overwrite, skip, or merge later.</p>
                     </div>
