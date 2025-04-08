@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 
 const AUTH_EXEMPT_PATHS = [
   '/api/auth/callback',
+  '/api/auth/redirect',
   '/api/logout',
 ];
 

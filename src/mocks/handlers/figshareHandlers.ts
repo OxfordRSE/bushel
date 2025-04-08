@@ -4,7 +4,6 @@ import { FigshareUser, FigshareProject, FigshareItem, FigshareFile } from '@/lib
 // Shared mock data
 const mockUser: FigshareUser = {
   id: 1,
-  full_name: 'Mock User',
   first_name: 'Mock',
   last_name: 'User',
   url_name: 'mock-user',

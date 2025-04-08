@@ -6,11 +6,8 @@
 app = 'bushel'
 primary_region = 'ams'
 
-[build]
-
 [env]
-FIGSHARE_CLIENT_ID = "eb3c515da1edaddfadbd383c7790ce69e42115a9"
-NEXT_PUBLIC_FIGSHARE_CLIENT_ID = "eb3c515da1edaddfadbd383c7790ce69e42115a9"
+  FIGSHARE_CLIENT_ID = "eb3c515da1edaddfadbd383c7790ce69e42115a9"
 
 [http_service]
   internal_port = 3000

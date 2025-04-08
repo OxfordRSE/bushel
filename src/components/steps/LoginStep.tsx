@@ -21,7 +21,7 @@ export default function LoginStep({ onSuccessAction }: { onSuccessAction: () => 
     return isLoggedIn ? (
         <div className="space-y-4 text-left">
             <p className="text-sm text-gray-700">
-                ✅ Logged in as {user?.full_name}
+                ✅ Logged in as {user?.first_name} {user?.last_name}
             </p>
             <Button variant="destructive" onClick={logout}>
                 Logout

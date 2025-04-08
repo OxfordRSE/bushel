@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {initMocks} from '@/mocks/init-mocks';
+import {absoluteUrl} from "@/lib/utils";
 
 initMocks();
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code');
-  const redirectUri = `${req.nextUrl.origin}/api/auth/callback`;
+  const redirectUri = absoluteUrl(req, "/api/auth/callback");
 
-  const res = await fetch('https://figshare.com/account/applications/token', {
+  const res = await fetch('https://api.figshare.com/v2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -19,12 +20,14 @@ export async function GET(req: NextRequest) {
     }),
   });
 
-  if (!res.ok) {
-    return NextResponse.redirect(new URL('/?error=oauth', req.url));
+  if (!res.ok || (process.env.NODE_ENV === "development" && process.env.MOCK_LOGIN_OAUTH_FAIL?.toLowerCase() === 'true')) {
+    console.error("OAuth failed", JSON.stringify(await res.json()));
+    return NextResponse.redirect(absoluteUrl(req, '/?error=oauth'));
   }
 
   const tokens = await res.json();
-  const response = NextResponse.redirect(new URL('/', req.url)); // or app/page.tsx
+  console.debug("OAuth succeeded", JSON.stringify(Object.fromEntries(Object.entries(tokens).map(([key, value]) => [key, value instanceof String? `${ value?.substring(0, 3)}...` : 'non-string value']))));
+  const response = NextResponse.redirect(absoluteUrl(req, '/')); // or app/page.tsx
   response.cookies.set('figshare_token', tokens.access_token, {
     httpOnly: true,
     secure: true,

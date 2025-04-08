@@ -1,12 +1,13 @@
 'use client';
 
-import {useEffect, useState} from 'react';
+import {Suspense, useEffect, useState} from 'react';
 import { Input } from '@/components/ui/input';
 import { CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import LoginStep from "@/components/steps/LoginStep";
 import {useAuth} from "@/lib/AuthContext";
 import {useProject} from "@/lib/ProjectContext";
 import {ProjectPicker} from "@/components/steps/ProjectPicker";
+import LoginFeedbackToast from "@/components/LoginFeedbackToast";
 
 const steps = [
     'Login via FigShare',
@@ -15,22 +16,27 @@ const steps = [
     'Fix Issues',
     'Resolve Data Clashes',
     'Upload to FigShare'
-];
+] as const;
+type StepKey = (typeof steps)[number];
+type StepStatus = Record<StepKey, boolean>;
 
 export default function AppFlow() {
     const [activeStep, setActiveStep] = useState(0);
-    const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+    const [completedSteps, setCompletedSteps] = useState<Partial<StepStatus>>({});
     const {user} = useAuth();
     const {project} = useProject();
 
     useEffect(() => {
-        if (!!user) completedSteps.push(0);
-        if (!!project) completedSteps.push(1);
-    }, [user]);
+        setCompletedSteps(prev => ({
+            ...prev,
+            [steps[0]]: !!user,
+            [steps[1]]: !! project,
+        }));
+    }, [user, project, setCompletedSteps]);
 
     const markStepComplete = (index: number) => {
-        if (!completedSteps.includes(index)) {
-            setCompletedSteps(prev => [...prev, index]);
+        if (!completedSteps[steps[index]]) {
+            setCompletedSteps({...completedSteps, [index]: true});
         }
     };
 
@@ -89,9 +95,12 @@ export default function AppFlow() {
 
     return (
         <div className="min-h-[60vh] flex flex-col gap-4 p-6 bg-gray-50 w-[90vw]">
+            <Suspense fallback={null}>
+                <LoginFeedbackToast />
+            </Suspense>
             {steps.map((title, index) => {
                 const isOpen = activeStep === index;
-                const isComplete = completedSteps.includes(index);
+                const isComplete = completedSteps[steps[index]];
 
                 return (
                     <section

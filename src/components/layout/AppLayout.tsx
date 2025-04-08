@@ -13,7 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <h1 className="text-xl font-semibold">📦 Bushel</h1>
           {isLoggedIn && (
             <div className="flex items-center gap-4 text-sm text-gray-600">
-              <span>👤 {user?.full_name ?? 'User'}</span>
+              <span>👤 {user?.first_name ?? 'Unknown'} {user?.last_name ?? 'User'}</span>
               <button onClick={logout} className="underline text-red-500">Logout</button>
             </div>
           )}

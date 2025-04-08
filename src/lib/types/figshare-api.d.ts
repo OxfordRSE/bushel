@@ -4,8 +4,6 @@
 export interface FigshareUser {
   /** Unique identifier for the user. */
   id: number;
-  /** Full name of the user. */
-  full_name: string;
   /** First name of the user. */
   first_name: string;
   /** Last name of the user. */
