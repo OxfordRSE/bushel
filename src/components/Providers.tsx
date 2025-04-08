@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { initMocks } from '@/mocks/init-mocks';
 import { AuthProvider } from '@/lib/AuthContext';
-import { ProjectProvider } from '@/lib/ProjectContext';
+import { GroupProvider } from '@/lib/GroupContext';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(process.env.NODE_ENV !== 'development');
@@ -28,7 +28,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   if (!ready) return null; // ⏳ block render until MSW is ready
   return (
     <AuthProvider>
-      <ProjectProvider>{children}</ProjectProvider>
+      <GroupProvider>{children}</GroupProvider>
     </AuthProvider>
   );
 }

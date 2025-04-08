@@ -7,6 +7,8 @@ import {FigshareUser} from "@/lib/types/figshare-api";
 type AuthState = {
   token: string | null;
   user: FigshareUser | null;
+  impersonationTarget: FigshareUser | null;
+  setImpersonationTarget: (user: FigshareUser | null) => void;
   isLoggedIn: boolean;
   login: () => Promise<void>;
   logout: () => void;
@@ -17,6 +19,7 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<FigshareUser | null>(null);
+    const [impersonationTarget, setImpersonationTarget] = useState<FigshareUser | null>(null);
 
   // Fetch user + token info on mount (via /api/me)
   useEffect(() => {
@@ -43,13 +46,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
+    setImpersonationTarget(null);
     // Optional: call /api/logout to clear cookie
     fetch('/api/logout', { method: 'POST' }).catch(() => {});
   }, []);
 
   return (
       <AuthContext.Provider
-          value={{ token, user, isLoggedIn: !!user, login, logout }}
+          value={{ token, user, isLoggedIn: !!user, login, logout, impersonationTarget, setImpersonationTarget}}
       >
         {children}
       </AuthContext.Provider>

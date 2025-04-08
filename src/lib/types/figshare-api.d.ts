@@ -10,48 +10,69 @@ export interface FigshareUser {
   last_name: string;
   /** URL-friendly name of the user. */
   url_name: string;
+  /** User's email **/
+  email: string;
   /** ORCID identifier of the user. */
   orcid_id: string | null;
   /** Indicates if the user is active. */
   is_active: boolean;
 }
 
-/** Represents a project in FigShare. */
-export interface FigshareProject {
-  /** Unique identifier for the project. */
+export interface FigshareGroup {
   id: number;
-  /** Title of the project. */
-  title: string;
-  /** Description of the project. */
-  description: string;
-  /** Date when the project was created. */
-  created_date: string;
-  /** Date when the project was last modified. */
-  modified_date: string;
-  /** Indicates if the project is public. */
-  is_public: boolean;
-  /** List of users associated with the project. */
-  users: FigshareUser[];
+  name: string;
+  resource_id: string;
+  parent_id: number|null;
+  association_criteria: string;
 }
 
-/** Represents an item (or article) in FigShare. */
-export interface FigshareItem {
-  /** Unique identifier for the item. */
+export interface FigshareCustomField {
   id: number;
-  /** Title of the item. */
+  name: string;
+  field_type: |
+      "text" |
+      "textarea" |
+      "dropdown" |
+      "url" |
+      "email"|
+      "date" |
+      "dropdown_large_list";
+  settings?: object;
+  is_mandatory?: boolean;
+}
+
+export interface FigshareArticleSearch {
+  resource_id?: string;
+  resource_doi?: string;
+  item_type?: number;
+  doi?: string;
+  handle?: string;
+  project_id?: number;
+  order?: string;
+  search_for?: string;
+  page?: number;
+  page_size?: number;
+  limit?: number;
+  offset?: number;
+  order_direction?: string;
+  institution?: number;
+  published_since?: string;
+  modified_since?: string;
+  group?: number;
+}
+
+export interface FigshareArticle {
+  id: number;
   title: string;
-  /** Description of the item. */
   description: string;
-  /** DOI of the item. */
   doi: string;
-  /** URL to access the item. */
   url: string;
-  /** Date when the item was published. */
+  created_date: string;
+  modified_date: string;
   published_date: string;
-  /** List of authors of the item. */
-  authors: FigshareUser[];
-  /** List of files associated with the item. */
-  files: FigshareFile[];
+  status: string;
+  group_id?: number;
+  custom_fields?: FigshareCustomField[];
 }
 
 /** Represents a file associated with a FigShare item. */

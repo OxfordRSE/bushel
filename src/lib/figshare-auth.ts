@@ -26,7 +26,7 @@ export async function getFigshareAccessToken(): Promise<string | null> {
 }
 
 async function refreshAccessToken(refreshToken: string): Promise<string | null> {
-  const res = await fetch('https://figshare.com/account/applications/token', {
+  const res = await fetch('https://api.figshare.com/v2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
