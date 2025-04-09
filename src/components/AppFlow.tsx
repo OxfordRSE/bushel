@@ -8,6 +8,7 @@ import {useGroup} from "@/lib/GroupContext";
 import GroupPicker from "@/components/steps/GroupPicker";
 import LoginFeedbackToast from "@/components/LoginFeedbackToast";
 import Impersonation from "@/components/steps/Impersonation";
+import InputDataStep from "@/components/steps/InputDataStep";
 
 const steps = [
     'Login via FigShare',
@@ -53,10 +54,7 @@ export default function AppFlow() {
             }} openByDefault={activeStep === 0}/>
             <Impersonation openByDefault={activeStep === 1} onSelect={() => setActiveStep(2)} />
             <GroupPicker openByDefault={activeStep === 2} onSelect={() => setActiveStep(3)} />
-            <div className="w-full">
-                <label className="block mb-2 text-left font-medium">Upload Excel file:</label>
-                <Input type="file" accept=".xlsx,.xls"/>
-            </div>
+            <InputDataStep openByDefault={activeStep === 3} onSuccess={() => setActiveStep(4)} />
             <div className="w-full">
                 <label className="block mb-2 text-left font-medium">Issues found:</label>
                 <ul className="text-sm text-gray-700 ps-0">

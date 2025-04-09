@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw'
 import {
   FigshareUser,
   FigshareGroup,
-  FigshareCustomField, FigshareArticle, FigshareArticleSearch
+  FigshareCustomField, FigshareArticle, FigshareArticleSearch, FigshareLicense, FigshareCategory, FigshareItemType
 } from '@/lib/types/figshare-api'
 
 function groupName(): string {
@@ -155,6 +155,89 @@ export const articles: FigshareArticle[] = [
   }),
 ];
 
+const licenses: FigshareLicense[] = [
+  {
+    value: 1,
+    name: "CC BY",
+    url: "https://creativecommons.org/licenses/by/4.0/"
+  },
+  {
+    value: 2,
+    name: "CC BY-NC",
+    url: "https://creativecommons.org/licenses/by-nc/4.0/"
+  },
+  {
+    value: 3,
+    name: "CC BY-SA",
+    url: "https://creativecommons.org/licenses/by-sa/4.0/"
+  }
+]
+
+const categories: FigshareCategory[] = [
+  {
+    "parent_id": 1,
+    "id": 11,
+    "title": "Archaeology",
+    "path": "/450/1024/6532",
+    "source_id": "300204",
+    "taxonomy_id": 4
+  },
+  {
+    "parent_id": 1,
+    "id": 12,
+    "title": "Anthropology",
+    "path": "/450/1024/6533",
+    "source_id": "300205",
+    "taxonomy_id": 4
+  },
+  {
+    "parent_id": 1,
+    "id": 13,
+    "title": "History",
+    "path": "/450/1024/6534",
+    "source_id": "300206",
+    "taxonomy_id": 4
+  }
+]
+
+const itemTypes: FigshareItemType[] = [
+  {
+    "id": 0,
+    "name": "journal contribution",
+    "string_id": "journal_contribution",
+    "icon": "paper",
+    "public_description": "This is the description of an item type",
+    "is_selectable": true,
+    "url_name": "journal_contribution"
+  },
+  {
+    "id": 1,
+    "name": "dataset",
+    "string_id": "dataset",
+    "icon": "dataset",
+    "public_description": "This is the description of an item type",
+    "is_selectable": true,
+    "url_name": "dataset"
+  },
+  {
+    "id": 2,
+    "name": "poster",
+    "string_id": "poster",
+    "icon": "poster",
+    "public_description": "This is the description of an item type",
+    "is_selectable": true,
+    "url_name": "poster"
+  },
+  {
+    "id": 3,
+    "name": "photograph",
+    "string_id": "photograph",
+    "icon": "photo",
+    "public_description": "This is the description of an item type",
+    "is_selectable": true,
+    "url_name": "photograph"
+  },
+]
 
 export const figshareHandlers = [
   http.post('https://api.figshare.com/v2/token', async ({ request }) => {
@@ -218,4 +301,19 @@ export const figshareHandlers = [
     return HttpResponse.json(paginatedArticles)
   }),
 
+  http.get('https://api.figshare.com/v2/account/licenses', () => {
+    return HttpResponse.json(licenses);
+  }),
+
+  http.get('https://api.figshare.com/v2/account/categories', () => {
+    return HttpResponse.json(categories);
+  }),
+
+  http.get('https://api.figshare.com/v2/item_types', ({request}) => {
+    const url = new URL(request.url);
+    const group_id = Number(url.searchParams.get("groupId"));
+    return group_id === groups[0].id
+        ? HttpResponse.json(itemTypes)
+        : HttpResponse.json(itemTypes.slice(2));
+  }),
 ]

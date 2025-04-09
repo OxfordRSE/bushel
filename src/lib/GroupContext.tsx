@@ -1,21 +1,22 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-import type { FigshareGroup, FigshareCustomField, FigshareArticle } from '@/lib/types/figshare-api';
+import type {FigshareGroup, FigshareCustomField, FigshareArticle, FigshareItemType} from '@/lib/types/figshare-api';
 import { fetchAllPagesWithConditionalCache } from '@/lib/fetchWithConditionalCache';
 import {useAuth} from "@/lib/AuthContext";
 import {FigshareAPIError} from "@/lib/utils";
 
 interface GroupContextType {
   group: FigshareGroup | null;
-  fields: FigshareCustomField[];
-  articles: FigshareArticle[];
+  fields: FigshareCustomField[] | null;
+  articles: FigshareArticle[] | null;
+  groupItemTypes: FigshareItemType[] | null;
   setGroup: (
-    group: FigshareGroup,
-    opts?: {
-      onFieldPage?: (page: FigshareCustomField[]) => void;
-      onArticlePage?: (page: FigshareArticle[]) => void;
-    }
+      group: FigshareGroup,
+      opts?: {
+        onFieldPage?: (page: FigshareCustomField[]) => void;
+        onArticlePage?: (page: FigshareArticle[]) => void;
+      }
   ) => void;
   clearGroup: () => void;
   errors: FigshareAPIError[];
@@ -26,20 +27,21 @@ const GroupContext = createContext<GroupContextType | undefined>(undefined);
 export function GroupProvider({ children }: { children: ReactNode }) {
   const {token} = useAuth();
   const [group, setGroupState] = useState<FigshareGroup | null>(null);
-  const [fields, setFields] = useState<FigshareCustomField[]>([]);
-  const [articles, setArticles] = useState<FigshareArticle[]>([]);
+  const [fields, setFields] = useState<FigshareCustomField[] | null>(null);
+  const [articles, setArticles] = useState<FigshareArticle[] | null>(null);
+  const [groupItemTypes, setGroupItemTypes] = useState<FigshareItemType[] | null>(null);
   const [errors, setErrors] = useState<FigshareAPIError[]>([]);
 
   const setGroup = async (
-    g: FigshareGroup,
-    opts?: {
-      onFieldPage?: (page: FigshareCustomField[]) => void;
-      onArticlePage?: (page: FigshareArticle[]) => void;
-    }
+      g: FigshareGroup,
+      opts?: {
+        onFieldPage?: (page: FigshareCustomField[]) => void;
+        onArticlePage?: (page: FigshareArticle[]) => void;
+      }
   ) => {
     setGroupState(g);
-    setFields([]);
-    setArticles([]);
+    setFields(null);
+    setArticles(null);
     setErrors([]);
     if (!token) return;
 
@@ -49,7 +51,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         token,
         pageSize: 100,
         onPage: (page) => {
-          setFields((prev) => [...prev, ...page]);
+          setFields((prev) => prev? [...prev, ...page] : page);
           opts?.onFieldPage?.(page);
         },
       }).catch(e => setErrors([...errors, e])),
@@ -62,8 +64,16 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         token,
         pageSize: 100,
         onPage: (page) => {
-          setArticles((prev) => [...prev, ...page]);
+          setArticles((prev) => prev? [...prev, ...page] : page);
           opts?.onArticlePage?.(page);
+        },
+      }).catch(e => setErrors([...errors, e])),
+      fetchAllPagesWithConditionalCache<FigshareItemType>({
+        baseUrl: `https://api.figshare.com/v2/item_types?group_id=${g.id}`,
+        token,
+        pageSize: 100,
+        onPage: (page) => {
+          setGroupItemTypes((prev) => prev? [...prev, ...page] : page);
         },
       }).catch(e => setErrors([...errors, e])),
     ]);
@@ -71,15 +81,15 @@ export function GroupProvider({ children }: { children: ReactNode }) {
 
   const clearGroup = () => {
     setGroupState(null);
-    setFields([]);
-    setArticles([]);
+    setFields(null);
+    setArticles(null);
     setErrors([]);
   };
 
   return (
-    <GroupContext.Provider value={{ group, fields, articles, setGroup, clearGroup, errors }}>
-      {children}
-    </GroupContext.Provider>
+      <GroupContext.Provider value={{ group, fields, articles, setGroup, clearGroup, errors, groupItemTypes }}>
+        {children}
+      </GroupContext.Provider>
   );
 }
 

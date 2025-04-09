@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { loginWithFigShare } from '@/lib/auth';
-import {FigshareUser} from "@/lib/types/figshare-api";
+import {FigshareCategory, FigshareLicense, FigshareUser} from "@/lib/types/figshare-api";
+import {fetchAllPagesWithConditionalCache} from "@/lib/fetchWithConditionalCache";
 
 type AuthState = {
   token: string | null;
@@ -12,6 +13,8 @@ type AuthState = {
   isLoggedIn: boolean;
   login: () => Promise<void>;
   logout: () => void;
+  institutionLicenses: FigshareLicense[] | null;
+  institutionCategories: FigshareCategory[] | null;
 };
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -19,21 +22,49 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<FigshareUser | null>(null);
-    const [impersonationTarget, setImpersonationTarget] = useState<FigshareUser | null>(null);
+  const [impersonationTarget, setImpersonationTarget] = useState<FigshareUser | null>(null);
+  const [institutionLicenses, setInstitutionLicenses] = useState<FigshareLicense[] | null>(null);
+  const [institutionCategories, setInstitutionCategories] = useState<FigshareCategory[] | null>(null);
+
+  const clear = () => {
+    setToken(null);
+    setUser(null);
+    setImpersonationTarget(null);
+    setInstitutionLicenses(null);
+    setInstitutionCategories(null);
+  }
+
+  const fetchInstitutionLicenses = async (token: string) => {
+    await fetchAllPagesWithConditionalCache<FigshareLicense>({
+      baseUrl: 'https://api.figshare.com/v2/account/licenses',
+      token,
+      onPage: (page) => setInstitutionLicenses((prev) => prev ? [...prev, ...page] : page),
+    });
+  }
+
+  const fetchInstitutionCategories = async (token: string) => {
+    await fetchAllPagesWithConditionalCache<FigshareCategory>({
+      baseUrl: 'https://api.figshare.com/v2/account/institution/item_types',
+      token,
+      onPage: (page) => setInstitutionCategories((prev) => prev ? [...prev, ...page] : page),
+    });
+  }
 
   // Fetch user + token info on mount (via /api/me)
   useEffect(() => {
     (async () => {
       const res = await fetch('/api/me');
       if (!res.ok) {
-        setToken(null);
-        setUser(null);
+        clear();
         return;
       }
 
       const data = await res.json();
       setToken(data.token);
       setUser(data.user);
+
+      fetchInstitutionCategories(data.token);
+      fetchInstitutionLicenses(data.token);
     })();
   }, []);
 
@@ -44,16 +75,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const logout = useCallback(() => {
-    setToken(null);
-    setUser(null);
-    setImpersonationTarget(null);
+    clear()
     // Optional: call /api/logout to clear cookie
     fetch('/api/logout', { method: 'POST' }).catch(() => {});
   }, []);
 
   return (
       <AuthContext.Provider
-          value={{ token, user, isLoggedIn: !!user, login, logout, impersonationTarget, setImpersonationTarget}}
+          value={{ token, user, isLoggedIn: !!user, login, logout, impersonationTarget, setImpersonationTarget, institutionCategories, institutionLicenses}}
       >
         {children}
       </AuthContext.Provider>

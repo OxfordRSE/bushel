@@ -80,8 +80,8 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
           {group && <div>
             <h2 className="text-sm font-medium mb-1">Selected group: {group.name}</h2>
             <p className="text-sm text-muted-foreground">ID: {group.id}</p>
-            <p className="text-sm text-muted-foreground">Articles: {articles.length}</p>
-            <p className="text-sm text-muted-foreground">Fields: {fields.length}</p>
+            <p className="text-sm text-muted-foreground">Articles: {articles?.length ?? "..."}</p>
+            <p className="text-sm text-muted-foreground">Fields: {fields?.length ?? "..."}</p>
           </div>}
 
           <div>

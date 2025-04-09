@@ -75,6 +75,31 @@ export interface FigshareArticle {
   custom_fields?: FigshareCustomField[];
 }
 
+export interface FigshareLicense {
+  value: number;
+  name: string;
+  url: string;
+}
+
+export interface FigshareCategory {
+  parent_id: number;
+  id: number;
+  title: string;
+  path: string;
+  source_id: string;
+  taxonomy_id: number;
+}
+
+export interface FigshareItemType {
+  id: number;
+  name: string;
+  string_id: string;
+  icon: string;
+  public_description: string;
+  is_selectable: boolean;
+  url_name: string;
+}
+
 /** Represents a file associated with a FigShare item. */
 export interface FigshareFile {
   /** Unique identifier for the file. */
