@@ -4,6 +4,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 import type { FigshareGroup, FigshareCustomField, FigshareArticle } from '@/lib/types/figshare-api';
 import { fetchAllPagesWithConditionalCache } from '@/lib/fetchWithConditionalCache';
 import {useAuth} from "@/lib/AuthContext";
+import {FigshareAPIError} from "@/lib/utils";
 
 interface GroupContextType {
   group: FigshareGroup | null;
@@ -17,6 +18,7 @@ interface GroupContextType {
     }
   ) => void;
   clearGroup: () => void;
+  errors: FigshareAPIError[];
 }
 
 const GroupContext = createContext<GroupContextType | undefined>(undefined);
@@ -26,6 +28,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const [group, setGroupState] = useState<FigshareGroup | null>(null);
   const [fields, setFields] = useState<FigshareCustomField[]>([]);
   const [articles, setArticles] = useState<FigshareArticle[]>([]);
+  const [errors, setErrors] = useState<FigshareAPIError[]>([]);
 
   const setGroup = async (
     g: FigshareGroup,
@@ -37,6 +40,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     setGroupState(g);
     setFields([]);
     setArticles([]);
+    setErrors([]);
     if (!token) return;
 
     await Promise.all([
@@ -48,7 +52,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
           setFields((prev) => [...prev, ...page]);
           opts?.onFieldPage?.(page);
         },
-      }),
+      }).catch(e => setErrors([...errors, e])),
       fetchAllPagesWithConditionalCache<FigshareArticle>({
         baseUrl: "account/articles/search",
         method: "POST",
@@ -61,7 +65,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
           setArticles((prev) => [...prev, ...page]);
           opts?.onArticlePage?.(page);
         },
-      }),
+      }).catch(e => setErrors([...errors, e])),
     ]);
   };
 
@@ -69,10 +73,11 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     setGroupState(null);
     setFields([]);
     setArticles([]);
+    setErrors([]);
   };
 
   return (
-    <GroupContext.Provider value={{ group, fields, articles, setGroup, clearGroup }}>
+    <GroupContext.Provider value={{ group, fields, articles, setGroup, clearGroup, errors }}>
       {children}
     </GroupContext.Provider>
   );

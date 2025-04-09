@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { fetchAllPagesWithConditionalCache } from '@/lib/fetchWithConditionalCache';
 import {clsx} from "clsx";
 import {useGroup} from "@/lib/GroupContext";
+import {FigshareAPIError} from "@/lib/utils";
 
 const DISPLAY_PAGE_SIZE = 20;
 
@@ -19,13 +20,14 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
   const [allGroups, setAllGroups] = useState<FigshareGroup[]>([]);
   const {group, setGroup, articles, fields} = useGroup();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FigshareAPIError|null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     setDisplayPage(1);
   }, [search]);
 
-  useEffect(() => {
+  const fetchGroups = () => {
     if (!token) return;
     setLoading(true);
     setError(null);
@@ -37,10 +39,13 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
       onPage: (newGroups) => {
         setAllGroups(prev => [...prev, ...newGroups]);
       }
-    }).catch(err => {
-      setError(err.message || 'Failed to load groups');
-    }).finally(() => setLoading(false));
-  }, [token]);
+    }).catch(setError).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchGroups();
+  }, [token, reloadKey]); // add reloadKey
+
 
   const filtered = search
       ? allGroups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
@@ -52,12 +57,25 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
       displayPage * DISPLAY_PAGE_SIZE
   );
 
-  const summary = group
-      ? <span className="text-muted-foreground">Group: {group.name}</span>
-      : <span>Select a group</span>;
+  const summary =
+      error
+          ? <span className="text-red-600">Error fetching groups: {error.details}</span>
+          : group
+              ? <span className="text-muted-foreground">Group: {group.name}</span>
+              : <span>Select a group</span>;
 
   return (
-      <StepPanel title={summary} status={group ? 'complete' : 'default'} openByDefault={openByDefault}>
+      <StepPanel
+          title={summary}
+          status={
+            error
+                ? 'error'
+                : group
+                    ? 'complete'
+                    : 'default'
+          }
+          openByDefault={openByDefault}
+      >
         <div className="space-y-3">
           {group && <div>
             <h2 className="text-sm font-medium mb-1">Selected group: {group.name}</h2>
@@ -83,8 +101,8 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
           )}
           {error && (
               <div className="text-sm text-red-600 space-y-2">
-                <p>Error: {error}</p>
-                <Button variant="outline" onClick={() => setSearch(search)}>Retry</Button>
+                <p>Error: {error.details}</p>
+                <Button variant="outline" onClick={() => setReloadKey(reloadKey + 1)}>Retry</Button>
               </div>
           )}
 

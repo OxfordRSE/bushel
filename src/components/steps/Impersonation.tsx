@@ -10,6 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { fetchAllPagesWithConditionalCache } from '@/lib/fetchWithConditionalCache';
 import {UserX} from "lucide-react";
 import {clsx} from "clsx";
+import {FigshareAPIError} from "@/lib/utils";
 
 const EMAIL_REGEX = /^\w+@\w+\.\w+$/;
 const DISPLAY_PAGE_SIZE = 20;
@@ -23,12 +24,13 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
   const [emailMatch, setEmailMatch] = useState<FigshareUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     setDisplayPage(1);
   }, [search, searchMode]);
 
-  useEffect(() => {
+  const fetchUsers = () => {
     if (!token) return;
     setLoading(true);
     setError(null);
@@ -41,9 +43,19 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
         setAllUsers(prev => [...prev, ...newUsers].filter(u => u.id !== user?.id));
       }
     }).catch((err: Error|unknown) => {
-      setError(err instanceof Error? err.message : 'Failed to load users');
+      setError(
+          err instanceof Error
+              ? err instanceof FigshareAPIError
+                  ? err.details
+                  : err.message
+              : 'Failed to load users'
+      );
     }).finally(() => setLoading(false));
-  }, [token]);
+  }
+
+  useEffect(() => {
+    fetchUsers();
+  }, [token, reloadKey]);
 
   useEffect(() => {
     if (!token || !EMAIL_REGEX.test(search)) {
@@ -80,12 +92,25 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
       displayPage * DISPLAY_PAGE_SIZE
   );
 
-  const summary = impersonationTarget
-      ? <span className="text-muted-foreground">Impersonating {impersonationTarget.first_name} {impersonationTarget.last_name}</span>
-      : <span>Acting as myself</span>;
+  const summary =
+      error
+          ? <span className="text-red-600">Error fetching group list: {error}</span>
+          : impersonationTarget
+              ? <span className="text-muted-foreground">Impersonating {impersonationTarget.first_name} {impersonationTarget.last_name}</span>
+              : <span>Acting as myself</span>;
 
   return (
-      <StepPanel title={summary} status={isLoggedIn ? 'complete' : 'default'} openByDefault={openByDefault}>
+      <StepPanel
+          title={summary}
+          status={
+            error
+                ? 'error'
+                : isLoggedIn
+                    ? 'complete'
+                    : 'default'
+          }
+          openByDefault={openByDefault}
+      >
         <div className="space-y-3">
           {impersonationTarget && <div>
             <Button
@@ -129,7 +154,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
           {error && (
               <div className="text-sm text-red-600 space-y-2">
                 <p>Error: {error}</p>
-                <Button variant="outline" onClick={() => setSearch(search)}>Retry</Button>
+                <Button variant="outline" onClick={() => setReloadKey(reloadKey + 1)}>Retry</Button>
               </div>
           )}
 
@@ -142,9 +167,9 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
                   <Button
                       variant="ghost"
                       onClick={() => {
-                    setImpersonationTarget(u)
-                    onSelect?.()
-                  }}
+                        setImpersonationTarget(u)
+                        onSelect?.()
+                      }}
                       className="flex flex-col items-start text-left w-full cursor-pointer"
                   >
                     {u.first_name} {u.last_name}<br />

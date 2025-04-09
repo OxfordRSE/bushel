@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   const tokens = await res.json();
-  console.debug("OAuth succeeded", JSON.stringify(Object.fromEntries(Object.entries(tokens).map(([key, value]) => [key, value instanceof String? `${ value?.substring(0, 3)}...` : 'non-string value']))));
+  // console.debug("OAuth succeeded", JSON.stringify(Object.fromEntries(Object.entries(tokens).map(([key, value]) => [key, value instanceof String? `${ value?.substring(0, 3)}...` : 'non-string value']))));
   const response = NextResponse.redirect(absoluteUrl(req, '/')); // or app/page.tsx
   response.cookies.set('figshare_token', tokens.access_token, {
     httpOnly: true,
