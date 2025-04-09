@@ -93,23 +93,37 @@ export async function fetchAllPagesWithConditionalCache<T>({
                                                            }: PagedFetcherOpts<T>): Promise<void> {
   try {
     let offset = 0;
-    let keepGoing = true;
+    let seenFinalPageHash: string | null = null;
 
-    while (keepGoing) {
-      const url = `${baseUrl}?limit=${pageSize}&offset=${offset}`;
+    while (true) {
+      const urlObj = new URL(baseUrl);
+      urlObj.searchParams.set('limit', String(pageSize));
+      urlObj.searchParams.set('offset', String(offset));
+      const url = urlObj.toString();
+
       const pageData = await fetchWithConditionalCache<T[]>(url, {
         headers: { Authorization: `token ${token}` },
         ...fetchOptions,
       });
 
+      // End if nothing returned
       if (!pageData?.length) break;
+
+      // Hash current page contents
+      const hash = JSON.stringify(pageData);
+
+      // Detect loop: same page served again
+      if (hash === seenFinalPageHash) break;
 
       onPage(pageData);
 
-      if (pageData.length < pageSize) keepGoing = false;
-      else offset += pageSize;
+      if (pageData.length < pageSize) break;
+
+      // Save hash of last full page
+      seenFinalPageHash = hash;
+      offset += pageSize;
     }
-  } catch(e) {
+  } catch (e) {
     throw toFigshareAPIError(e);
   }
 }

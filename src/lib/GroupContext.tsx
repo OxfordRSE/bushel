@@ -45,7 +45,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
 
     await Promise.all([
       fetchAllPagesWithConditionalCache<FigshareCustomField>({
-        baseUrl: `account/institution/custom_fields?group_id=${g.id}`,
+        baseUrl: `https://api.figshare.com/v2/account/institution/custom_fields?group_id=${g.id}`,
         token,
         pageSize: 100,
         onPage: (page) => {
@@ -54,7 +54,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         },
       }).catch(e => setErrors([...errors, e])),
       fetchAllPagesWithConditionalCache<FigshareArticle>({
-        baseUrl: "account/articles/search",
+        baseUrl: "https://api.figshare.com/v2/account/articles/search",
         method: "POST",
         body: JSON.stringify({
           group_id: g.id,
