@@ -158,11 +158,11 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
               </div>
           )}
 
-          <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm items-center">
             {paginatedDisplay.map(u => (
                 <li
                     key={u.id}
-                    className={clsx(["px-4 py-2 border rounded hover:bg-muted", { "bg-muted": impersonationTarget?.id === u.id }])}
+                    className="flex"
                 >
                   <Button
                       variant="ghost"
@@ -170,7 +170,10 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
                         setImpersonationTarget(u)
                         onSelect?.()
                       }}
-                      className="flex flex-col items-start text-left w-full cursor-pointer"
+                      className={clsx([
+                        "w-full h-fit text-left flex flex-col items-start whitespace-normal break-words p-4 border rounded",
+                        { "bg-muted": impersonationTarget?.id === u.id }
+                      ])}
                   >
                     {u.first_name} {u.last_name}<br />
                     <span className="text-muted-foreground text-xs">{u.email}</span>

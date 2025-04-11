@@ -106,11 +106,11 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
               </div>
           )}
 
-          <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
+          <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm items-center">
             {paginatedDisplay.map(g => (
                 <li
                     key={g.id}
-                    className={clsx(["px-4 py-2 border rounded hover:bg-muted", { "bg-muted": group?.id === g.id }])}
+                    className="flex"
                 >
                   <Button
                       variant="ghost"
@@ -118,9 +118,12 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
                         setGroup(g);
                         onSelect?.();
                       }}
-                      className="w-full text-left cursor-pointer flex flex-col items-start"
+                      className={clsx(
+                          "w-full h-fit text-left flex flex-col items-start whitespace-normal break-words p-4 border rounded",
+                          {"bg-muted": group?.id === g.id}
+                      )}
                   >
-                    {g.name}<br />
+                    {g.name}
                     <span className="text-muted-foreground text-xs">ID: {g.id}</span>
                   </Button>
                 </li>

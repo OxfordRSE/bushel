@@ -64,8 +64,8 @@ const users: FigshareUser[] = [
   },
   {
     id: 2,
-    first_name: 'Jane',
-    last_name: 'Doe',
+    first_name: 'Jane Mary Elizabeth Ruth',
+    last_name: "Doe-Re-Mi-Fa-Sol-La-Ti-Do-And-Then-It's-Back-To-Doe",
     url_name: 'jane-doe',
     email: 'jane.doe@bodleian.ox.ac.uk',
     orcid_id: null,
