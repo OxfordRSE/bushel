@@ -1,3 +1,7 @@
+import {fileRefCheck} from "@/lib/checks/check_files";
+import {dateFormatCheck} from "@/lib/checks/check_dates";
+import {Field} from "@/lib/InputDataContext";
+
 export type CheckStatus = 'pending' | 'in_progress' | 'success' | 'skipped' | 'failed';
 
 export interface CheckResult {
@@ -8,6 +12,10 @@ export interface CheckResult {
 }
 
 export type DataRowId = `upload${number}-${number}`;
+
+// The column name mapping is a list of tuples, where the first element is the
+// column name in the Excel file and the second element is the regularized name
+export type ColumnNameMapping = [string, string][];
 
 export interface DataRowStatus {
   id: DataRowId;
@@ -48,48 +56,22 @@ export interface DataRowCheck {
   ): Promise<void>;
 }
 
-export const schemaCheck: DataRowCheck = {
-  name: 'schema',
-  async run(parser, emit) {
-    const result: CheckResult = { status: 'success', details: 'Schema valid' };
-    await new Promise(r => setTimeout(r, Math.random() * 5000));
-    emit(result);
-  }
-};
-
-export const fileRefCheck: DataRowCheck = {
-  name: 'fileRef',
-  async run(parser, emit) {
-    await new Promise(r => setTimeout(r, Math.random() * 5000));
-    const result: CheckResult = { status: 'success', details: 'All referenced files accessible' };
-    emit(result);
-  }
-};
-
-export const dateFormatCheck: DataRowCheck = {
-  name: 'dateFormat',
-  async run(parser, emit) {
-    await new Promise(r => setTimeout(r, Math.random() * 5000));
-    const result: CheckResult = { status: 'success', details: 'Date fields formatted correctly' };
-    emit(result);
-  }
-};
-
 export class DataRowParser {
   public data: Record<string, unknown>|null = null;
   private terminated = false;
   public checks: Record<string, CheckResult[]> = {
-    'read_data': [{ status: 'pending' }],
-    [schemaCheck.name]: [{ status: 'pending' }],
+    'Read data': [{ status: 'pending' }],
     [fileRefCheck.name]: [{ status: 'pending' }],
     [dateFormatCheck.name]: [{ status: 'pending' }],
   };
 
   constructor(
       public readonly input_data: unknown[],
-      public readonly headers: string[],
+      public readonly columnNameMapping: ColumnNameMapping,
       private readonly id: DataRowId,
       private readonly update: UpdateStatusCallback,
+      public readonly fields: Field[],
+      public readonly context: Record<string, unknown> = {}
   ) {}
 
   terminate() {
@@ -140,18 +122,23 @@ export class DataRowParser {
 
   // Expand the sparse array of input data into a full object by comparing vs headers
   private async expand_row_data() {
-    if (this.input_data.length > this.headers.length) {
+    if (this.input_data.length > this.columnNameMapping.length) {
       throw new DataError('More cell values than headers (row too long)', 'InvalidInputData');
     }
     this.data = Object.fromEntries(
-        this.headers
+        this.columnNameMapping
+            .map((mapping) => mapping[1])
             .slice(1) // Skip the first header, which is empty because ExcelJS uses 1-indexed column numbers
             .map((header, i) => {
-              const value = this.input_data[i + 1];  // ExcelJS uses 1-indexed column numbers
+              let value = this.input_data[i + 1];  // ExcelJS uses 1-indexed column numbers
+              const field = this.fields.find(f => f.name === header);
+              if (field?.internal_settings.is_array && typeof value === 'string') {
+                  value = value.split(';').map(v => v.trim());
+              }
               return [header, value ?? null];
             })
     )
-    this.report('read_data')({
+    this.report('Read data')({
       status: 'success',
       details: 'Row data expanded',
     });
@@ -170,16 +157,14 @@ export class DataRowParser {
       if (process.env.NODE_ENV === 'development') console.debug(this.id, ...args, this.checks);
     }
     try {
-      debug('read_data')
+      debug('Read data')
       await this.runCheck({
-        name: 'read_data',
+        name: 'Read data',
         run: async (parser, emit) => {
           await parser.expand_row_data();
           emit({ status: 'success' });
         },
       });
-      debug(schemaCheck.name)
-      await this.runCheck(schemaCheck);
       debug(fileRefCheck.name)
       await this.runCheck(fileRefCheck);
       debug(dateFormatCheck.name)

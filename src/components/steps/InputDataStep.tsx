@@ -6,6 +6,8 @@ import StepPanel from '@/components/steps/StepPanel';
 import {AlertTriangle, CheckSquare, CogIcon, StopCircle} from "lucide-react";
 import {DataRowStatus} from "@/lib/DataRowParser";
 import {useImmer} from "use-immer";
+import DirectoryPicker from "@/lib/DirectoryPicker";
+import {useGroup} from "@/lib/GroupContext";
 
 type RowsSummary = Record<DataRowStatus["status"], number> & {
     total: number;
@@ -19,7 +21,8 @@ type RowsSummary = Record<DataRowStatus["status"], number> & {
 
 export default function InputDataStep({ openByDefault = true, onSuccess }: { openByDefault?: boolean, onSuccess?: () => void }) {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const { rows, setFile, halt, clear, loadErrors, working } = useInputData();
+    const { rows, file, setFile, halt, reset, check, ready, loadErrors, working, setParserContext, parserContext } = useInputData();
+    const {group} = useGroup();
     const [maxWarnings, setMaxWarnings] = useState(20);
     const [maxErrors, setMaxErrors] = useState(20);
     const [rowsSummary, setRowsSummary] = useImmer<RowsSummary>({
@@ -56,7 +59,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
         const file = e.target.files?.[0];
         if (!file) return;
         try {
-            setFile(file);
+            setFile(file, true);
         } catch (err) {
             console.error(err);
             alert((err instanceof Error ? err.message : 'Unknown error while parsing file'));
@@ -109,6 +112,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                             <Input type="number" min={0} value={maxErrors} onChange={e => setMaxErrors(+e.target.value)} className="w-20" />
                         </label>
                     </div>
+                    <DirectoryPicker onSelect={(dir) => {setParserContext({ ...parserContext, rootDir: dir })}} />
                 </div>
 
                 <Input
@@ -118,13 +122,25 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                     onChange={handleChange}
                 />
 
-                {working && (
-                    <Button variant="destructive" onClick={halt}>Halt</Button>
-                )}
+                <Button
+                    variant="outline"
+                    onClick={check}
+                    disabled={working || !ready}
+                    className="w-full"
+                >
+                    {
+                        working
+                            ? 'Checking...'
+                            : 'Check file'
+                    }
+                </Button>
 
-                {rows.length > 0 && (
-                    <Button variant="ghost" onClick={clear}>Clear File</Button>
-                )}
+                {!group && <p><em>A Group must be selected before the file can be checked.</em></p>}
+                {!!group && !ready && !!file && <p><em>Awaiting group details from FigShare...</em></p>}
+
+                <Button variant="destructive" onClick={halt} disabled={!working}>Halt</Button>
+
+                <Button variant="ghost" onClick={() => reset(false)} disabled={!file}>Clear File</Button>
 
                 {(rowsSummary.errors >= maxErrors || rowsSummary.warnings >= maxWarnings) && (
                     <div className="bg-yellow-100 text-yellow-800 text-sm p-3 rounded">
