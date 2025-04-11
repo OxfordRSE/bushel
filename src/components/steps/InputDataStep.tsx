@@ -9,8 +9,11 @@ import {useImmer} from "use-immer";
 
 type RowsSummary = Record<DataRowStatus["status"], number> & {
     total: number;
+    // number of errors across all files; number of rows with errors is `error`
     errors: number;
+    // number of warnings across all files; number of rows with warnings is `warning`
     warnings: number;
+    // number of rows with warnings
     warning: number;
 }
 
@@ -74,12 +77,12 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
             summary = <>All {rows.length} rows successfully checked</>;
         status = 'complete';
     } else if (rowsSummary.parsing > 0) {
-        summary = <>
+        summary = <span className="flex items-center">
             Checking {rows.length} rows:
             <CheckSquare className="mx-2 h-4 w-4 text-green-600" /> {rowsSummary.valid} /
             <CogIcon className="mx-2 h-4 w-4 text-blue-600" /> {rowsSummary.parsing} /
             <StopCircle className="mx-2 h-4 w-4 text-red-600" /> {rowsSummary.error}
-        </>;
+        </span>;
         iconOverride = <CogIcon className="animate-spin text-blue-600 w-5 h-5" />;
     } else {
         summary = <>Checked {rows.length} rows: {rowsSummary.errors} errors in {rowsSummary.error} rows</>;
@@ -129,13 +132,47 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                     </div>
                 )}
 
-                {loadErrors && (
+                {loadErrors.length > 0 && (
                     <div className="bg-red-100 text-red-800 text-sm p-3 rounded">
                         {loadErrors.map((loadError, i) => (
                             <div key={i}>
                                 {loadError}
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {rowsSummary.errors > 0 && (
+                    <div className="bg-red-100 text-red-800 text-sm p-3 rounded">
+                        <ul>
+                            {rows.filter(r => r.errors.length > 0)
+                                .map((r, i) => (<>
+                                    {
+                                        r.errors.map((error, j) => (
+                                            <li key={`${i}-${j}`}>
+                                                Row {r.excelRowNumber}: {error.message} ({error.kind})
+                                            </li>
+                                        ))
+                                    }
+                                </>))}
+                        </ul>
+                    </div>
+                )}
+
+                {rowsSummary.warnings > 0 && (
+                    <div className="bg-yellow-100 text-yellow-800 text-sm p-3 rounded">
+                        <ul>
+                            {rows.filter(r => r.warnings.length > 0)
+                                .map((r, i) => (<>
+                                    {
+                                        r.warnings.map((w, j) => (
+                                            <li key={`${i}-${j}`}>
+                                                Row {r.excelRowNumber}: {w}
+                                            </li>
+                                        ))
+                                    }
+                                </>))}
+                        </ul>
                     </div>
                 )}
             </div>

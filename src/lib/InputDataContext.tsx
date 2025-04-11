@@ -42,7 +42,7 @@ function combineFields({
   const licenseNames = licenses.map(l => l.name);
   const itemTypeNames = itemTypes.map(it => it.name);
 
-  // OVERWRITE customeFields 'Files' field_type to 'file'
+  // OVERWRITE customFields 'Files' field_type to 'file'
   const convertedCustomFields: Field[] = customFields.map(f => ({...f, internal_settings: {}}));
   const existingFilesField = convertedCustomFields.find(f => f.name === 'Files');
   if (existingFilesField) {
@@ -57,6 +57,7 @@ function combineFields({
   }
 
   return [
+    // Fields loaded by FigShare API queries
     {
       name: "Categories",
       field_type: "text",
@@ -93,6 +94,22 @@ function combineFields({
       field_type: "text",
       internal_settings: {is_array: true},
       is_mandatory: true
+    },
+    // Optional fields with set definitions
+    {
+      name: "Keywords",
+      field_type: "text",
+      internal_settings: {is_array: true},
+    },
+    {
+      name: "Funding",
+      field_type: "text",
+      internal_settings: {is_array: true},
+    },
+    {
+      name: "References",
+      field_type: "text",
+      internal_settings: {is_array: true},
     },
     ...convertedCustomFields
   ];
@@ -131,6 +148,7 @@ async function extractRowsFromSheet({
 const InputDataContext = createContext<InputDataContextValue | undefined>(undefined);
 
 export function InputDataProvider({ children }: { children: React.ReactNode }) {
+  const debug = process.env.NODE_ENV === 'development';
   const [rows, setRows] = useImmer<DataRowStatus[]>([]);
   const parsersRef = useRef<DataRowParser[]>([]);
   const sessionRef = useRef<number>(0);
@@ -165,6 +183,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setFile = async (file: File, clearCurrent = true) => {
+    if (debug) console.debug('setFile', file);
     if (clearCurrent) clear();
     setWorking(true);
     if (!field_queries_loaded) {
@@ -175,40 +194,43 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     let rowsFromSheet;
     try {
       rowsFromSheet = await extractRowsFromSheet({file, fieldList});
+      if (debug) console.debug('rowsFromSheet', rowsFromSheet);
     } catch (e) {
       clear();
       setLoadErrors(errors => [...errors, e instanceof Error? e.message : e]);
       return;
     }
 
-    const sessionId = `upload${sessionRef}`;
+    const sessionId = `upload${sessionRef.current}`;
     const newRows: DataRowStatus[] = [];
     const newParsers: DataRowParser[] = [];
-    const header_row = rowsFromSheet[0];
+    const header_row = rowsFromSheet[1]; // ExcelJS returns 1-indexed rows
     if (!(header_row instanceof Array)) {
       setLoadErrors(errors => [...errors, 'Cannot read header row']);
       return;
     }
     const headers = header_row.map(String);
 
-    for (let i = 1; i < rowsFromSheet.length; i++) {
+    for (let i = 2; i < rowsFromSheet.length; i++) {
+      if (debug) console.debug('row', i, rowsFromSheet[i]);
       const data = rowsFromSheet[i];
       if (
           !(data instanceof Array) ||
-            data.length === 0 ||
-            data.every(cell => cell === null || cell === undefined || cell === '')
+          data.length === 0 ||
+          data.every(cell => cell === null || cell === undefined || cell === '')
       ) continue; // Skip empty rows
 
       const rowId: DataRowId = `${sessionId}-${i}` as DataRowId;
       const initial: DataRowStatus = {
         id: rowId,
-        excelRowNumber: i + 1, // Excel rows are 1-indexed and there's a header row
+        excelRowNumber: i, // The ExcelJS row array is already mapped by row number
         status: 'parsing',
         errors: [],
         warnings: []
       };
 
       const update = (id: DataRowId, patch: Partial<DataRowStatus>): boolean | void => {
+        if (debug) console.debug('update', id, patch);
         let shouldTerminate = false;
         setRows(draft => {
           const idx = draft.findIndex(r => r.id === id);
@@ -220,7 +242,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
           Object.assign(draft[idx], patch);
         });
         // Check if that was the last row to finish
-        const allFinished = parsersRef.current.every(p => p.checks['read_data'].status !== 'pending');
+        const allFinished = parsersRef.current.every(p => p.complete);
         if (allFinished) {
           setWorking(false);
           shouldTerminate = true;
@@ -228,7 +250,8 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         return shouldTerminate; // allow continuation
       };
 
-      const parser = new DataRowParser(data, headers, rowId, sessionId, update);
+      const parser = new DataRowParser(data, headers, rowId, update);
+      if (debug) console.debug('parser', parser);
       newRows.push(initial);
       newParsers.push(parser);
     }

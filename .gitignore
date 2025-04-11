@@ -42,3 +42,5 @@ next-env.d.ts
 
 # Demonstration Excel file
 /fixtures/SDS_Metadata_example.xlsx
+
+fixtures/

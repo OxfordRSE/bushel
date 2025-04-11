@@ -4,6 +4,7 @@ export interface CheckResult {
   status: CheckStatus;
   details?: string;
   error?: DataError;
+  warning?: string;
 }
 
 export type DataRowId = `upload${number}-${number}`;
@@ -30,7 +31,7 @@ export class DataError extends Error {
  * If it returns `true`, it signals that the parser should terminate.
  */
 export type UpdateStatusCallback = (
-    rowId: DataRowId,
+    id: DataRowId,
     patch: Partial<DataRowStatus>
 ) => boolean | void;
 
@@ -51,6 +52,7 @@ export const schemaCheck: DataRowCheck = {
   name: 'schema',
   async run(parser, emit) {
     const result: CheckResult = { status: 'success', details: 'Schema valid' };
+    await new Promise(r => setTimeout(r, Math.random() * 5000));
     emit(result);
   }
 };
@@ -58,7 +60,7 @@ export const schemaCheck: DataRowCheck = {
 export const fileRefCheck: DataRowCheck = {
   name: 'fileRef',
   async run(parser, emit) {
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise(r => setTimeout(r, Math.random() * 5000));
     const result: CheckResult = { status: 'success', details: 'All referenced files accessible' };
     emit(result);
   }
@@ -67,48 +69,73 @@ export const fileRefCheck: DataRowCheck = {
 export const dateFormatCheck: DataRowCheck = {
   name: 'dateFormat',
   async run(parser, emit) {
+    await new Promise(r => setTimeout(r, Math.random() * 5000));
     const result: CheckResult = { status: 'success', details: 'Date fields formatted correctly' };
     emit(result);
   }
 };
 
 export class DataRowParser {
-  public readonly id: string;
   public data: Record<string, unknown>|null = null;
   private terminated = false;
-  public checks: Record<string, CheckResult> = {
-    'read_data': { status: 'pending' },
-    [schemaCheck.name]: { status: 'pending' },
-    [fileRefCheck.name]: { status: 'pending' },
-    [dateFormatCheck.name]: { status: 'pending' },
+  public checks: Record<string, CheckResult[]> = {
+    'read_data': [{ status: 'pending' }],
+    [schemaCheck.name]: [{ status: 'pending' }],
+    [fileRefCheck.name]: [{ status: 'pending' }],
+    [dateFormatCheck.name]: [{ status: 'pending' }],
   };
 
   constructor(
       public readonly input_data: unknown[],
       public readonly headers: string[],
-      private readonly rowId: DataRowId,
-      sessionId: string,
+      private readonly id: DataRowId,
       private readonly update: UpdateStatusCallback,
-  ) {
-    this.id = `${sessionId}-${rowId}`;
-  }
+  ) {}
 
   terminate() {
     this.terminated = true;
   }
 
   private maybeUpdate(patch: Partial<DataRowStatus>) {
-    if (this.terminated) return;
-    const shouldTerminate = this.update(this.rowId, patch);
+    if (this.terminated) return true;
+    const shouldTerminate = this.update(this.id, patch);
     if (shouldTerminate) {
       this.terminated = true;
     }
+    return shouldTerminate;
   }
 
-  private emit = (label: string) => (result: CheckResult): boolean | void => {
-    if (this.terminated) return;
-    this.checks[label] = result;
-    return this.update(this.rowId, {}); // result updates are not propagated directly to UI
+  private emitToUI = (result: CheckResult) => {
+    // Only errors and warnings will get emitted in this way
+    if (result.warning) {
+      this.maybeUpdate({
+        warnings: [
+          ...Object.entries(this.checks)
+              .map(([check, results]) => results.reduce(
+                  (acc, r) => r.warning ? [...acc, `${check}: ${r.warning}`] : acc, [] as string[]
+              ))
+        ]
+            .flat()
+      })
+    } else {
+      this.maybeUpdate({
+        errors: [
+          ...Object.values(this.checks)
+              .map((results) => results.reduce(
+                  (acc, r) => r.error ? [...acc, r.error] : acc, [] as DataError[]
+              ))
+        ]
+            .flat()
+      })
+    }
+  }
+
+  private report = (label: string) => (result: CheckResult): boolean | void => {
+    if (this.terminated) return true;
+    this.checks[label].push(result);
+    if (result.warning || result.error) {
+      return this.emitToUI(result); // result updates are not propagated directly to UI
+    }
   };
 
   // Expand the sparse array of input data into a full object by comparing vs headers
@@ -117,27 +144,33 @@ export class DataRowParser {
       throw new DataError('More cell values than headers (row too long)', 'InvalidInputData');
     }
     this.data = Object.fromEntries(
-        this.headers.map((header, i) => {
-          const value = this.input_data[i];
-          return [header, value ?? null];
-        })
+        this.headers
+            .slice(1) // Skip the first header, which is empty because ExcelJS uses 1-indexed column numbers
+            .map((header, i) => {
+              const value = this.input_data[i + 1];  // ExcelJS uses 1-indexed column numbers
+              return [header, value ?? null];
+            })
     )
-    this.emit('read_data')({
-        status: 'success',
-        details: 'Row data expanded',
+    this.report('read_data')({
+      status: 'success',
+      details: 'Row data expanded',
     });
   }
 
   async runCheck(check: DataRowCheck): Promise<void> {
     if (this.terminated) return;
-    this.emit(check.name)({
-        status: 'pending',
+    this.report(check.name)({
+      status: 'pending',
     });
-    await check.run(this, this.emit(check.name));
+    await check.run(this, this.report(check.name));
   }
 
   async runAllChecks(): Promise<void> {
+    const debug = (...args: unknown[]) => {
+      if (process.env.NODE_ENV === 'development') console.debug(this.id, ...args, this.checks);
+    }
     try {
+      debug('read_data')
       await this.runCheck({
         name: 'read_data',
         run: async (parser, emit) => {
@@ -145,19 +178,27 @@ export class DataRowParser {
           emit({ status: 'success' });
         },
       });
+      debug(schemaCheck.name)
       await this.runCheck(schemaCheck);
+      debug(fileRefCheck.name)
       await this.runCheck(fileRefCheck);
+      debug(dateFormatCheck.name)
       await this.runCheck(dateFormatCheck);
 
-      const hasErrors = Object.values(this.checks).some(c => c.status === 'failed');
+      const hasErrors = Object.values(this.checks).some(results => results.some(c => c.status === 'failed'));
       this.maybeUpdate({status: hasErrors ? 'error' : 'valid'});
     } catch (err) {
       const error = err instanceof DataError ? err : new DataError(err instanceof Error? err.message : 'Unknown error during parsing', 'UnhandledError');
-      this.terminated = true;
       this.maybeUpdate({
         status: 'error',
         errors: [error],
       });
+      this.terminated = true;
     }
+  }
+
+  public get complete() {
+    return Object.values(this.checks)
+        .every(results => results.some(c => c.status !== 'pending' && c.status !== 'in_progress'));
   }
 }

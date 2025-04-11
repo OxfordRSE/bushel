@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchInstitutionCategories = async (token: string) => {
     await fetchAllPagesWithConditionalCache<FigshareCategory>({
-      baseUrl: 'https://api.figshare.com/v2/account/institution/item_types',
+      baseUrl: 'https://api.figshare.com/v2/account/categories',
       token,
       onPage: (page) => setInstitutionCategories((prev) => prev ? [...prev, ...page] : page),
     });

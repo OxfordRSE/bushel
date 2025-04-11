@@ -93,15 +93,67 @@ const users: FigshareUser[] = [
   })(10000)
 ]
 
-export const groups: FigshareGroup[] = Array.from({ length: 1000 }, (_, i) => ({
-  id: i + 1,
-  name: i === 0 ? 'Iron Age Ceramics' : groupName(),
-  resource_id: `res-${i + 1}`,
-  parent_id: null,
-  association_criteria: 'All members welcome',
-}));
+export const groups: FigshareGroup[] = [
+  {
+    id: 0,
+    name: "SDS Test Group",
+    resource_id: "res-0",
+    parent_id: null,
+    association_criteria: "Testing genuine uploads",
+  },
+  ...Array.from({ length: 1000 }, (_, i) => ({
+    id: i + 1,
+    name: i === 0 ? 'Iron Age Ceramics' : groupName(),
+    resource_id: `res-${i + 1}`,
+    parent_id: null,
+    association_criteria: 'All members welcome',
+  }))
+];
 
 export const customFields: FigshareCustomField[] = [
+  // 7 fields for group 0 (SDS Test Group)
+  {
+    id: 100001,
+    name: 'author details',
+    field_type: 'text' as FigshareCustomField['field_type'],
+    is_mandatory: false,
+  },
+  {
+    id: 100002,
+    name: 'genre',
+    field_type: 'text' as FigshareCustomField['field_type'],
+    is_mandatory: false,
+  },
+  {
+    id: 100003,
+    name: 'setting',
+    field_type: 'text' as FigshareCustomField['field_type'],
+    is_mandatory: false,
+  },
+  {
+    id: 100004,
+    name: 'location',
+    field_type: 'text' as FigshareCustomField['field_type'],
+    is_mandatory: false,
+  },
+  {
+    id: 100005,
+    name: 'participants',
+    field_type: 'text' as FigshareCustomField['field_type'],
+    is_mandatory: false,
+  },
+  {
+    id: 100006,
+    name: 'date',
+    field_type: 'date' as FigshareCustomField['field_type'],
+    is_mandatory: false,
+  },
+  {
+    id: 100007,
+    name: 'Copyright and Attribution',
+    field_type: 'text' as FigshareCustomField['field_type'],
+    is_mandatory: false,
+  },
   // 100 fields for group 1 (Iron Age Ceramics)
   ...Array.from({ length: 100 }, (_, i) => ({
     id: i + 1,
@@ -202,41 +254,113 @@ const categories: FigshareCategory[] = [
 
 const itemTypes: FigshareItemType[] = [
   {
-    "id": 0,
-    "name": "journal contribution",
-    "string_id": "journal_contribution",
-    "icon": "paper",
-    "public_description": "This is the description of an item type",
+    "id": 1,
+    "name": "figure",
+    "string_id": "figure",
+    "icon": "figure",
+    "public_description": "Figures are generally photos, graphs and static images that would be represented in traditional pdf publications.",
     "is_selectable": true,
-    "url_name": "journal_contribution"
+    "url_name": "figure"
   },
   {
-    "id": 1,
+    "id": 2,
+    "name": "media",
+    "string_id": "media",
+    "icon": "media",
+    "public_description": "Media is any form of research output that is recorded and played. This is most commonly video, but can be audio or 3D representations.",
+    "is_selectable": true,
+    "url_name": "media"
+  },
+  {
+    "id": 3,
     "name": "dataset",
     "string_id": "dataset",
     "icon": "dataset",
-    "public_description": "This is the description of an item type",
+    "public_description": "Datasets usually provide raw data for analysis. This raw data often comes in spreadsheet form, but can be any collection of data, on which analysis can be performed.",
     "is_selectable": true,
     "url_name": "dataset"
   },
   {
-    "id": 2,
+    "id": 5,
     "name": "poster",
     "string_id": "poster",
     "icon": "poster",
-    "public_description": "This is the description of an item type",
+    "public_description": "Poster sessions are particularly prominent at academic conferences. Posters are usually one frame of a powerpoint (or similar) presentation and are represented at full resolution to make them zoomable.",
     "is_selectable": true,
     "url_name": "poster"
   },
   {
-    "id": 3,
-    "name": "photograph",
-    "string_id": "photograph",
-    "icon": "photo",
-    "public_description": "This is the description of an item type",
+    "id": 6,
+    "name": "journal contribution",
+    "string_id": "journal_contribution",
+    "icon": "paper",
+    "public_description": "Any type of content formally published in an academic journal, usually following a peer-review process.",
     "is_selectable": true,
-    "url_name": "photograph"
+    "url_name": "journal_contribution"
   },
+  {
+    "id": 7,
+    "name": "presentation",
+    "string_id": "presentation",
+    "icon": "presentation",
+    "public_description": "Academic presentations can be uploaded in their original slide format. Presentations are usually represented as slide decks. Videos of presentations can be uploaded as media.",
+    "is_selectable": true,
+    "url_name": "presentation"
+  },
+  {
+    "id": 8,
+    "name": "thesis",
+    "string_id": "thesis",
+    "icon": "thesis",
+    "public_description": "In order to distinguish essays and pre-prints from academic theses, we have a separate category. These are often much longer text based documents than a paper.",
+    "is_selectable": true,
+    "url_name": "thesis"
+  },
+  {
+    "id": 9,
+    "name": "software",
+    "string_id": "code",
+    "icon": "code",
+    "public_description": "Code as a research output can either be uploaded directly from your computer or through the code management system GitHub. Versioning of code repositories is supported.",
+    "is_selectable": true,
+    "url_name": "software"
+  },
+  {
+    "id": 11,
+    "name": "online resource",
+    "string_id": "online_resource",
+    "icon": "onlineresource",
+    "public_description": "Any type of resource available online.",
+    "is_selectable": true,
+    "url_name": "online_resource"
+  },
+  {
+    "id": 12,
+    "name": "preprint",
+    "string_id": "preprint",
+    "icon": "preprint",
+    "public_description": "Preprints are manuscripts made publicly available before they have been submitted for formal peer review and publication. They might contain new research findings or data. Preprints can be a draft or final version of an author's research but must not have been accepted for publication at the time of submission.",
+    "is_selectable": true,
+    "url_name": "preprint"
+  },
+  {
+    "id": 13,
+    "name": "book",
+    "string_id": "book",
+    "icon": "book",
+    "public_description": "Books are generally long-form documents, a specialist work of writing that contains multiple chapters or a detailed written study.",
+    "is_selectable": true,
+    "url_name": "book"
+  },
+  {
+    "id": 14,
+    "name": "conference contribution",
+    "string_id": "conference_contribution",
+    "icon": "paper",
+    "public_description": "Any type of content contributed to an academic conference, such as papers, presentations, lectures or proceedings.",
+    "is_selectable": true,
+    "url_name": "conference_contribution"
+  }
 ]
 
 export const figshareHandlers = [
@@ -276,11 +400,18 @@ export const figshareHandlers = [
 
   http.get('https://api.figshare.com/v2/account/institution/custom_fields', ({ request }) => {
     const url = new URL(request.url);
-    const groupId = Number(url.searchParams.get("groupId"));
+    const groupId = Number(url.searchParams.get("group_id"));
     // Simulate pagination
     const offset = Number(url.searchParams.get("offset")) || 0;
     const limit = Number(url.searchParams.get("limit")) || 10;
-    const paginatedFields = customFields.filter(field => field.id === groupId).slice(offset, offset + limit);
+    const filteredFields = groupId === groups[0].id
+        ? customFields.filter(field => field.id > 100000) // Only fields for group 0
+        : groupId === 1
+            ? customFields.slice(0, 100)
+            // This filter means Group 2 will pick up fields for group 2, 20..29, 200..299, etc.
+            : customFields.filter(field => /^Group\d+_Field\d+$/.test(field.name) && field.name.startsWith(`Group${groupId}`));
+    console.debug(`Filtered fields for group ${groupId}:`, filteredFields);
+    const paginatedFields = filteredFields.slice(offset, offset + limit);
     return HttpResponse.json(paginatedFields);
   }),
 
@@ -311,7 +442,7 @@ export const figshareHandlers = [
 
   http.get('https://api.figshare.com/v2/item_types', ({request}) => {
     const url = new URL(request.url);
-    const group_id = Number(url.searchParams.get("groupId"));
+    const group_id = Number(url.searchParams.get("group_id"));
     return group_id === groups[0].id
         ? HttpResponse.json(itemTypes)
         : HttpResponse.json(itemTypes.slice(2));
