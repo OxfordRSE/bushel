@@ -1,55 +1,115 @@
-import { Stack, StackProps, Duration, RemovalPolicy } from 'aws-cdk-lib';
+// aws_cdk.stack.ts
+import {
+  Stack,
+  StackProps,
+  CfnOutput,
+  RemovalPolicy, SecretValue,
+} from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
-import * as certificatemanager from 'aws-cdk-lib/aws-certificatemanager';
-import * as ecr from 'aws-cdk-lib/aws-ecr';
+import {
+  aws_ecs as ecs,
+  aws_ecs_patterns as ecsPatterns,
+  aws_ec2 as ec2,
+  aws_route53 as route53,
+  aws_certificatemanager as acm,
+  aws_logs as logs,
+} from 'aws-cdk-lib';
+import { HostedZone } from 'aws-cdk-lib/aws-route53';
+
+import { aws_secretsmanager as secretsmanager } from 'aws-cdk-lib';
+
+interface BushelStackProps extends StackProps {
+  deploymentDomain: string;
+  figshareClientId: string;
+  figshareClientSecret: string;
+}
 
 export class BushelStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  albApp: ecsPatterns.ApplicationLoadBalancedFargateService;
+  vpc: ec2.Vpc;
+  cluster: ecs.Cluster;
+  zone: route53.IHostedZone;
+  cert: acm.ICertificate;
+  figshareSecret: secretsmanager.ISecret;
+
+  constructor(scope: Construct, id: string, props: BushelStackProps) {
     super(scope, id, props);
 
-    const vpc = ec2.Vpc.fromLookup(this, 'DefaultVpc', { isDefault: true });
+    const { deploymentDomain, figshareClientId, figshareClientSecret } = props;
+    const zoneDomain = deploymentDomain.split('.').slice(-2).join('.');
 
-    const cluster = new ecs.Cluster(this, 'BushelCluster', {
-      vpc,
+    // --- VPC ---
+    this.vpc = new ec2.Vpc(this, 'Vpc', {
+      maxAzs: 2,
+      natGateways: 0,
     });
 
-    const repository = new ecr.Repository(this, 'BushelRepository', {
-      repositoryName: 'bushel-staging',
-      removalPolicy: RemovalPolicy.DESTROY, // fine for staging
-      emptyOnDelete: true,
+    // --- Route53 ---
+    this.zone = process.env.SKIP_LOOKUPS === 'true'
+        ? HostedZone.fromHostedZoneAttributes(this, 'Zone', {
+          hostedZoneId: 'DUMMY',
+          zoneName: zoneDomain,
+        })
+        : route53.HostedZone.fromLookup(this, 'Zone', {
+          domainName: zoneDomain,
+        });
+
+    // --- ACM Certificate ---
+    this.cert = new acm.Certificate(this, 'Certificate', {
+      domainName: deploymentDomain,
+      validation: acm.CertificateValidation.fromDns(this.zone),
     });
 
-    const certificateArn = 'arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'; // Replace this
-    const certificate = certificatemanager.Certificate.fromCertificateArn(
-      this,
-      'BushelStagingCert',
-      certificateArn
-    );
 
-    new ecs_patterns.ApplicationLoadBalancedFargateService(this, 'BushelService', {
-      cluster,
+    // --- ECS Cluster ---
+    this.cluster = new ecs.Cluster(this, 'Cluster', { vpc: this.vpc });
+
+    this.figshareSecret = new secretsmanager.Secret(this, 'FigshareOAuthSecret', {
+      secretName: 'figshare/oauth',
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({
+          client_id: SecretValue.unsafePlainText(figshareClientId),
+          client_secret: SecretValue.unsafePlainText(figshareClientSecret),
+        }),
+        generateStringKey: 'placeholder',
+      },
+      removalPolicy: RemovalPolicy.RETAIN, // change to DESTROY if desired
+    });
+
+
+    // --- Fargate App + ALB ---
+    this.albApp = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'App', {
+      cluster: this.cluster,
+      desiredCount: 1,
       cpu: 512,
       memoryLimitMiB: 1024,
-      desiredCount: 1,
-      listenerPort: 443,
-      domainName: undefined, // not using custom domain
-      domainZone: undefined,
-      certificate,
       taskImageOptions: {
-        image: ecs.ContainerImage.fromEcrRepository(repository, 'latest'),
+        image: ecs.ContainerImage.fromAsset('..'),
         containerPort: 3000,
         enableLogging: true,
-        environment: {
-          NODE_ENV: 'production'
+        logDriver: ecs.LogDriver.awsLogs({
+          streamPrefix: 'bushel',
+          logRetention: logs.RetentionDays.ONE_WEEK,
+        }),
+        secrets: {
+          FIGSHARE_CLIENT_ID: ecs.Secret.fromSecretsManager(this.figshareSecret, 'client_id'),
+          FIGSHARE_CLIENT_SECRET: ecs.Secret.fromSecretsManager(this.figshareSecret, 'client_secret'),
         },
-        containerName: 'bushel-app'
       },
-      publicLoadBalancer: true,
-      assignPublicIp: true,
-      healthCheckGracePeriod: Duration.seconds(60),
+      domainName: deploymentDomain,
+      domainZone: this.zone,
+      certificate: this.cert,
+      redirectHTTP: true,
+    });
+
+    this.albApp.service.autoScaleTaskCount({ maxCapacity: 4 }).scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 60,
+    });
+
+
+    // --- Outputs ---
+    new CfnOutput(this, 'AppURL', {
+      value: `https://${deploymentDomain}`,
     });
   }
 }
