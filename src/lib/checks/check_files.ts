@@ -3,7 +3,7 @@ import { DataRowCheck, DataError } from '@/lib/DataRowParser';
 
 export const fileRefCheck: DataRowCheck = {
   name: 'Check Files',
-  async run(parser, emit, context?: Record<string, unknown>) {
+  async run(parser, emit, context) {
     const files = parser.data?.files;
     const rootDir = context?.rootDir as FileSystemDirectoryHandle | undefined;
 

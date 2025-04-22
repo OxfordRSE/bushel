@@ -3,7 +3,7 @@ import { useInputData } from '@/lib/InputDataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import StepPanel from '@/components/steps/StepPanel';
-import {AlertTriangle, CheckSquare, CogIcon, StopCircle} from "lucide-react";
+import {AlertTriangle, CheckSquare, CogIcon, InfoIcon, StopCircle} from "lucide-react";
 import {DataRowStatus} from "@/lib/DataRowParser";
 import {useImmer} from "use-immer";
 import DirectoryPicker from "@/lib/DirectoryPicker";
@@ -21,7 +21,7 @@ type RowsSummary = Record<DataRowStatus["status"], number> & {
 
 export default function InputDataStep({ openByDefault = true, onSuccess }: { openByDefault?: boolean, onSuccess?: () => void }) {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const { rows, file, setFile, halt, reset, check, ready, loadErrors, working, setParserContext, parserContext } = useInputData();
+    const { rows, file, setFile, halt, reset, check, ready, loadErrors, loadWarnings, working, setParserContext, parserContext } = useInputData();
     const {group} = useGroup();
     const [maxWarnings, setMaxWarnings] = useState(20);
     const [maxErrors, setMaxErrors] = useState(20);
@@ -34,6 +34,20 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
         warnings: 0,
         warning: 0,
     });
+    const [showHelp, setShowHelp] = useState(false);
+
+    const resetFile = () => {
+        reset(false)
+        setRowsSummary({
+            error: 0,
+            parsing: 0,
+            valid: 0,
+            total: 0,
+            errors: 0,
+            warnings: 0,
+            warning: 0,
+        })
+    }
 
     useEffect(() => {
         const summary: Partial<RowsSummary> = {}
@@ -43,6 +57,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
             summary.errors = (summary.errors || 0) + row.errors.length;
             summary.warnings = (summary.warnings || 0) + row.warnings.length;
         });
+        summary.warning = rows.filter(r => r.warnings.length > 0).length;
         setRowsSummary(draft => {
             Object.keys(summary).forEach(key => {
                 draft[key as keyof RowsSummary] = summary[key as keyof RowsSummary] || 0;
@@ -56,6 +71,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
     }, [rows]);
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        resetFile()
         const file = e.target.files?.[0];
         if (!file) return;
         try {
@@ -70,15 +86,27 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
     let status: Parameters<typeof StepPanel>[0]["status"] = 'default';
     let iconOverride: Parameters<typeof StepPanel>[0]["iconOverride"]  = undefined;
 
-    if (!rows.length) {
+    if (group && !ready) {
+        summary = <>Loading group details...</>;
+        status = undefined;
+        iconOverride = <CogIcon className="animate-spin text-blue-600 w-5 h-5" />;
+    } else if (!rows.length) {
         summary = <>Upload an Excel file</>;
         status = 'default';
     } else if (rowsSummary.valid === rows.length) {
         if (rowsSummary.warnings > 0)
-            summary = <>All {rows.length} rows successfully checked (<AlertTriangle className="inline-block w-4 h-4 text-yellow-600" /> {rowsSummary.warnings} warnings in {rowsSummary.warning} rows)</>;
+            summary = <span className={"flex items-center"}>
+                All {rows.length} rows successfully checked (<AlertTriangle className="inline-block w-4 h-4 text-yellow-600" />
+                {rowsSummary.warnings} warnings in {rowsSummary.warning} rows)
+            </span>;
         else
             summary = <>All {rows.length} rows successfully checked</>;
         status = 'complete';
+    } else if (rowsSummary.errors >= maxErrors || rowsSummary.warnings >= maxWarnings) {
+        summary = <span className="flex items-center">
+            Checking halted at max {rowsSummary.errors >= maxErrors? 'errors' : 'warnings'}
+        </span>;
+        status = 'error';
     } else if (rowsSummary.parsing > 0) {
         summary = <span className="flex items-center">
             Checking {rows.length} rows:
@@ -112,7 +140,25 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                             <Input type="number" min={0} value={maxErrors} onChange={e => setMaxErrors(+e.target.value)} className="w-20" />
                         </label>
                     </div>
-                    <DirectoryPicker onSelect={(dir) => {setParserContext({ ...parserContext, rootDir: dir })}} />
+                    <div className={"flex items-center"}>
+                        <DirectoryPicker onSelect={(dir) => {setParserContext({ ...parserContext, rootDir: dir })}} />
+                        <Button variant="ghost" className="ms-4 cursor-pointer text-blue-500" onClick={() => setShowHelp(!showHelp)}>
+                            <InfoIcon className={"w-4 h-4"} /> {showHelp? 'Hide' : 'Show'} help
+                        </Button>
+                    </div>
+                    {
+                        showHelp && (
+                            <div className="text-sm text-gray-500 mt-2">
+                                <p>The tool will upload files to FigShare as well as the metadata.</p>
+                                <p>
+                                    Web browsers only allow very tightly controlled access to the files on your computer.
+                                    As a result, all files referenced in your Excel spreadsheet must appear inside a &#39;root&#39; directory on your computer.
+                                    Selecting the root directory using this button will allow the tool to see all files within that directory.
+                                    When files are checked, their paths will be checked <em>relative to the root directory</em>.
+                                </p>
+                            </div>
+                        )
+                    }
                 </div>
 
                 <Input
@@ -126,7 +172,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                 <Button
                     variant="outline"
                     onClick={check}
-                    disabled={working || !ready}
+                    disabled={working || !ready || !file}
                     className="w-full cursor-pointer"
                 >
                     {
@@ -150,9 +196,9 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
 
                 <Button
                     variant="ghost"
-                    onClick={() => reset(false)}
+                    onClick={resetFile}
                     disabled={!file}
-                    className={"cursor-pointer"}
+                    className={"cursor-pointer ms-4"}
                 >
                     Clear File
                 </Button>
@@ -163,11 +209,29 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                     </div>
                 )}
 
-                {loadErrors.length > 0 && (
+                {loadErrors && loadErrors.length > 0 && (
                     <div className="bg-red-100 text-red-800 text-sm p-3 rounded">
                         {loadErrors.map((loadError, i) => (
                             <div key={i}>
-                                {loadError}
+                                {loadError.split('\n').map((line, j) => (
+                                    <p key={`${i}-${j}`}>
+                                        {line}
+                                    </p>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {loadWarnings && loadWarnings.length > 0 && (
+                    <div className="bg-yellow-100 text-yellow-800 text-sm p-3 rounded">
+                        {loadWarnings.map((loadError, i) => (
+                            <div key={i}>
+                                {loadError.split('\n').map((line, j) => (
+                                    <p key={`${i}-${j}`}>
+                                        {line}
+                                    </p>
+                                ))}
                             </div>
                         ))}
                     </div>

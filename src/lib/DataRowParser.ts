@@ -54,10 +54,18 @@ export interface DataRowCheck {
   name: string;
   run(
       parser: DataRowParser,
-      emit: (result: CheckResult) => boolean | void
+      emit: (result: CheckResult) => boolean | void,
+      context: Record<string, unknown>
   ): Promise<void>;
 }
 
+/* DataRowParser is a class that parses a row of data from an Excel file
+* and runs a series of checks on it. It is used to validate the data
+* before uploading it to Figshare.
+*
+* The class can be given the full row of data from the Excel file.
+* Any columns that are in `columnNameMapping` but not in `fields` will be dropped during ingestion.
+* */
 export class DataRowParser {
   public data: Record<string, unknown>|null = null;
   private terminated = false;
@@ -134,11 +142,13 @@ export class DataRowParser {
             .map((header, i) => {
               let value = this.input_data[i + 1];  // ExcelJS uses 1-indexed column numbers
               const field = this.fields.find(f => f.name === header);
-              if (field?.internal_settings.is_array && typeof value === 'string') {
-                  value = value.split(';').map(v => v.trim());
+              if (!field) return null
+              if (field.internal_settings.is_array && typeof value === 'string') {
+                  value = value.split(/;\s+/).map(v => v.trim());
               }
               return [header, value ?? null];
             })
+            .filter(entry => entry !== null) as [string, unknown][]
     )
     this.report('Read data')({
       status: 'success',
@@ -151,7 +161,7 @@ export class DataRowParser {
     this.report(check.name)({
       status: 'pending',
     });
-    await check.run(this, this.report(check.name));
+    await check.run(this, this.report(check.name), this.context);
   }
 
   async runAllChecks(): Promise<void> {

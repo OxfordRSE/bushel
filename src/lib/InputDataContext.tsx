@@ -24,6 +24,7 @@ interface InputDataContextValue {
   // Reset the context to its initial state
   reset: (clearParserContext: boolean) => void;
   loadErrors: string[];
+  loadWarnings: string[];
   working: boolean;
 }
 
@@ -56,14 +57,16 @@ function combineFields({
 
   // OVERWRITE customFields 'Files' field_type to 'file'
   const convertedCustomFields: Field[] = customFields.map(f => ({...f, internal_settings: {}}));
-  const existingFilesField = convertedCustomFields.find(f => f.name === 'Files');
+  const existingFilesField = convertedCustomFields.find(f => /^Files$/i.test(f.name));
   if (existingFilesField) {
+    existingFilesField.name = 'files';
     existingFilesField.field_type = 'file';
+    existingFilesField.internal_settings = {...existingFilesField.internal_settings, is_array: true};
   } else {
     convertedCustomFields.push({
-      name: 'Files',
+      name: 'files',
       field_type: 'file',
-      internal_settings: {},
+      internal_settings: {is_array: true},
       is_mandatory: false,
     });
   }
@@ -130,6 +133,7 @@ function combineFields({
 type ExtractedRowData = {
   rows: ExcelJS.RowValues[];
   colNameMap: ColumnNameMapping;
+  droppedColumns: string[];
 }
 
 async function extractRowsFromSheet({
@@ -162,15 +166,15 @@ async function extractRowsFromSheet({
   const mandatoryFields = fieldList.filter(f => f.is_mandatory).map(f => f.name);
   const missingHeaders = mandatoryFields.filter(h => !excelColumnNames.includes(h));
   if (missingHeaders.length > 0)  throw new Error(`Missing mandatory columns: ${missingHeaders.join(', ')}`);
-  const unrecognisedHeaders = excelColumnNames.filter(h => !fieldNames.includes(h));
-  if (unrecognisedHeaders.length > 0) {
-    throw new Error(`Unrecognised column names: ${unrecognisedHeaders.join(', ')}.\nAllowed column names: ${fieldNames.join(', ')}`);
-  }
 
   const all_data = worksheet.getSheetValues();
   if (all_data.length < 3) throw new Error('No data found in Excel file.');
 
-  return {rows: all_data.slice(2), colNameMap};
+  return {
+    rows: all_data.slice(2),
+    colNameMap,
+    droppedColumns: excelColumnNames.filter(h => !fieldNames.includes(h))
+  };
 }
 
 const InputDataContext = createContext<InputDataContextValue | undefined>(undefined);
@@ -183,6 +187,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const sessionRef = useRef<number>(0);
   const [fieldList, setFieldList] = useImmer<Field[]>([]);
   const [loadErrors, setLoadErrors] = useImmer<string[]>([]);
+  const [loadWarnings, setLoadWarnings] = useImmer<string[]>([]);
   const [working, setWorking] = useImmer<boolean>(false);
   const [file, _setFile] = useImmer<File | null>(null);
   const [ready, setReady] = useImmer<boolean>(false);
@@ -199,20 +204,9 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         itemTypes: groupItemTypes,
         customFields: fields,
       }));
-      console.log('Setting field list:', combineFields({
-        categories: institutionCategories,
-        licenses: institutionLicenses,
-        itemTypes: groupItemTypes,
-        customFields: fields,
-      }),{
-        categories: institutionCategories,
-        licenses: institutionLicenses,
-        itemTypes: groupItemTypes,
-        customFields: fields,
-      } )
       setReady(true);
     }
-  }, [fields]);
+  }, [fields, institutionCategories, institutionLicenses, groupItemTypes]);
 
   const halt = () => {
     parsersRef.current.forEach(p => p.terminate());
@@ -229,6 +223,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     _setFile(null);
     setRows([]);
     setLoadErrors([]);
+    setLoadWarnings([]);
   };
 
   const setFile = async (file: File, clearCurrent = true) => {
@@ -259,12 +254,16 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const {rows: rowsFromSheet, colNameMap} = sheetData
+    const {rows: rowsFromSheet, colNameMap, droppedColumns} = sheetData
+    if (droppedColumns.length > 0) {
+      setLoadWarnings(warnings => [...warnings, `Dropped unrecognised columns: ${droppedColumns.join(', ')}`]);
+    }
+
     const sessionId = `upload${sessionRef.current}`;
     const newRows: DataRowStatus[] = [];
     const newParsers: DataRowParser[] = [];
 
-    for (let i = 2; i < rowsFromSheet.length; i++) {
+    for (let i = 0; i < rowsFromSheet.length; i++) {
       if (debug) console.debug('row', i, rowsFromSheet[i]);
       const data = rowsFromSheet[i];
       if (
@@ -276,7 +275,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
       const rowId: DataRowId = `${sessionId}-${i}` as DataRowId;
       const initial: DataRowStatus = {
         id: rowId,
-        excelRowNumber: i, // The ExcelJS row array is already mapped by row number
+        excelRowNumber: i + 2, // ExcelJS uses 1-indexed row numbers and has a header row
         status: 'parsing',
         errors: [],
         warnings: []
@@ -315,7 +314,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-      <InputDataContext.Provider value={{ rows, ready, file, setFile, halt, reset, loadErrors, working, parserContext, setParserContext, check }}>
+      <InputDataContext.Provider value={{ rows, ready, file, setFile, halt, reset, loadErrors, loadWarnings, working, parserContext, setParserContext, check }}>
         {children}
       </InputDataContext.Provider>
   );

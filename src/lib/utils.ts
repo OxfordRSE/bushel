@@ -90,6 +90,7 @@ export const toFigshareColumnName = (name: string, allowed_names: string[] = [])
         .trim()
         .replace(/\s+/g, ' ')
         .replace(/_+/g, '_')
+        .replace(/^licence$/i, 'license')
     // Special cases:
     if (clean === '' || clean === '_') {
             throw new Error(`${name} regularises to an blank value`);
