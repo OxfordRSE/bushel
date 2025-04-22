@@ -1,5 +1,5 @@
 # === Build Stage ===
-FROM node:20-bullseye as builder
+FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 RUN npm run build
 
 # === Runtime Stage ===
-FROM node:20-slim as runner
+FROM node:20-slim AS runner
 
 ENV NODE_ENV=production
 WORKDIR /app

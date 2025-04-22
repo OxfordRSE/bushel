@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 import type {FigshareGroup, FigshareCustomField, FigshareArticle, FigshareItemType} from '@/lib/types/figshare-api';
-import {fetchAllPagesWithConditionalCache, fetchWithConditionalCache} from '@/lib/fetchWithConditionalCache';
+import {fetchWithConditionalCache} from '@/lib/fetchWithConditionalCache';
 import {useAuth} from "@/lib/AuthContext";
 import {FigshareAPIError} from "@/lib/utils";
 
@@ -48,7 +48,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   .then(setFields)
   .catch(e => setErrors([...errors, e])),
       fetchWithConditionalCache<FigshareArticle[]>("https://api.figshare.com/v2/account/articles/search", {
-        headers: {Authorization: `method ${token}`},
+        headers: {Authorization: `token ${token}`},
         method: "POST",
         body: JSON.stringify({
           group_id: g.id,
