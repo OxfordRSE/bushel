@@ -16,6 +16,8 @@ export interface FigshareUser {
   orcid_id: string | null;
   /** Indicates if the user is active. */
   is_active: boolean;
+  quota: number;
+  used_quota: number;
 }
 
 export interface FigshareGroup {

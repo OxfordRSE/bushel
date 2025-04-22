@@ -35,6 +35,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
         warning: 0,
     });
     const [showHelp, setShowHelp] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const resetFile = () => {
         reset(false)
@@ -129,21 +130,75 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
         >
             <div className="space-y-4">
                 <div className="text-sm text-gray-600 space-y-1">
-                    <p>Validation will halt once the number of warnings or errors exceeds your limits.</p>
-                    <div className="flex gap-4 items-center">
-                        <label className="flex items-center gap-2">
-                            Max warnings:
-                            <Input type="number" min={0} value={maxWarnings} onChange={e => setMaxWarnings(+e.target.value)} className="w-20" />
-                        </label>
-                        <label className="flex items-center gap-2">
-                            Max errors:
-                            <Input type="number" min={0} value={maxErrors} onChange={e => setMaxErrors(+e.target.value)} className="w-20" />
-                        </label>
-                    </div>
+                    <button
+                        className="text-blue-600 text-sm mb-2"
+                        onClick={() => setShowAdvanced(s => !s)}
+                    >
+                        {showAdvanced ? 'Hide advanced options' : 'Show advanced options'}
+                    </button>
+                    {showAdvanced && (
+                        <div className="space-y-2 text-sm">
+                            <div className="flex gap-4">
+                                <p>Validation will halt once the number of warnings or errors exceeds your limits.</p>
+                                <label className="flex items-center gap-2">
+                                    Max warnings:
+                                    <Input type="number" min={0} value={maxWarnings}
+                                           onChange={e => setMaxWarnings(+e.target.value)} className="w-20"/>
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    Max errors:
+                                    <Input type="number" min={0} value={maxErrors}
+                                           onChange={e => setMaxErrors(+e.target.value)} className="w-20"/>
+                                </label>
+                            </div>
+                            <div className="flex gap-4">
+                                <label className="flex items-center gap-2">
+                                    Min categories:
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={parserContext.minCategoryCount ?? 1}
+                                        onChange={e =>
+                                            setParserContext({...parserContext, minCategoryCount: +e.target.value})
+                                        }
+                                        className="w-20"
+                                    />
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    Keywords min:
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={parserContext.minKeywordCount ?? 1}
+                                        onChange={e =>
+                                            setParserContext({...parserContext, minKeywordCount: +e.target.value})
+                                        }
+                                        className="w-20"
+                                    />
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    Keywords max:
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={parserContext.maxKeywordCount ?? 100}
+                                        onChange={e =>
+                                            setParserContext({...parserContext, maxKeywordCount: +e.target.value})
+                                        }
+                                        className="w-20"
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                    )}
+
                     <div className={"flex items-center"}>
-                        <DirectoryPicker onSelect={(dir) => {setParserContext({ ...parserContext, rootDir: dir })}} />
-                        <Button variant="ghost" className="ms-4 cursor-pointer text-blue-500" onClick={() => setShowHelp(!showHelp)}>
-                            <InfoIcon className={"w-4 h-4"} /> {showHelp? 'Hide' : 'Show'} help
+                        <DirectoryPicker onSelect={(dir) => {
+                            setParserContext({...parserContext, rootDir: dir})
+                        }}/>
+                        <Button variant="ghost" className="ms-4 cursor-pointer text-blue-500"
+                                onClick={() => setShowHelp(!showHelp)}>
+                            <InfoIcon className={"w-4 h-4"}/> {showHelp ? 'Hide' : 'Show'} help
                         </Button>
                     </div>
                     {
@@ -152,7 +207,8 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                                 <p>The tool will upload files to FigShare as well as the metadata.</p>
                                 <p>
                                     Web browsers only allow very tightly controlled access to the files on your computer.
-                                    As a result, all files referenced in your Excel spreadsheet must appear inside a &#39;root&#39; directory on your computer.
+                                    As a result, all files referenced in your Excel spreadsheet must appear inside
+                                    a &#39;root&#39; directory on your computer.
                                     Selecting the root directory using this button will allow the tool to see all files within that directory.
                                     When files are checked, their paths will be checked <em>relative to the root directory</em>.
                                 </p>
@@ -241,15 +297,12 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                     <div className="bg-red-100 text-red-800 text-sm p-3 rounded">
                         <ul>
                             {rows.filter(r => r.errors.length > 0)
-                                .map((r, i) => (<>
-                                    {
-                                        r.errors.map((error, j) => (
-                                            <li key={`${i}-${j}`}>
-                                                Row {r.excelRowNumber}: {error.message} ({error.kind})
-                                            </li>
-                                        ))
-                                    }
-                                </>))}
+                                .map((r, i) =>
+                                    r.errors.map((error, j) => (
+                                        <li key={`${i}-${j}`}>
+                                            Row {r.excelRowNumber}: {error.message} ({error.kind})
+                                        </li>
+                                    )))}
                         </ul>
                     </div>
                 )}
@@ -258,15 +311,13 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                     <div className="bg-yellow-100 text-yellow-800 text-sm p-3 rounded">
                         <ul>
                             {rows.filter(r => r.warnings.length > 0)
-                                .map((r, i) => (<>
-                                    {
-                                        r.warnings.map((w, j) => (
-                                            <li key={`${i}-${j}`}>
-                                                Row {r.excelRowNumber}: {w}
-                                            </li>
-                                        ))
-                                    }
-                                </>))}
+                                .map((r, i) =>
+                                    r.warnings.map((w, j) => (
+                                        <li key={`${i}-${j}`}>
+                                            Row {r.excelRowNumber}: {w}
+                                        </li>
+                                    ))
+                                )}
                         </ul>
                     </div>
                 )}

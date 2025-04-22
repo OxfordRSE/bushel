@@ -1,6 +1,6 @@
 import {createContext, useContext, useEffect, useRef} from 'react';
 import {type Updater, useImmer} from 'use-immer';
-import {ColumnNameMapping, DataRowId, DataRowParser, DataRowStatus} from './DataRowParser';
+import {ColumnNameMapping, DataRowId, DataRowParser, DataRowStatus, ParserContext} from './DataRowParser';
 import ExcelJS from 'exceljs';
 import {useGroup} from "@/lib/GroupContext";
 import {useAuth} from "@/lib/AuthContext";
@@ -9,8 +9,8 @@ import {toFigshareColumnName} from "@/lib/utils";
 
 interface InputDataContextValue {
   rows: DataRowStatus[];
-  parserContext: Record<string, unknown>;
-  setParserContext: Updater<Record<string, unknown>>;
+  parserContext: ParserContext;
+  setParserContext: Updater<ParserContext>;
   // Ready to receive a file
   ready: boolean;
   file: File | null;
@@ -26,6 +26,8 @@ interface InputDataContextValue {
   loadErrors: string[];
   loadWarnings: string[];
   working: boolean;
+  skipRows: DataRowStatus["id"][]; // Rows to be skipped during upload
+  setSkipRows: Updater<DataRowStatus["id"][]>;
 }
 
 type combineFieldsArgs = {
@@ -182,7 +184,6 @@ const InputDataContext = createContext<InputDataContextValue | undefined>(undefi
 export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const debug = process.env.NODE_ENV === 'development';
   const [rows, setRows] = useImmer<DataRowStatus[]>([]);
-  const [parserContext, setParserContext] = useImmer<Record<string, unknown>>({});
   const parsersRef = useRef<DataRowParser[]>([]);
   const sessionRef = useRef<number>(0);
   const [fieldList, setFieldList] = useImmer<Field[]>([]);
@@ -191,8 +192,17 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const [working, setWorking] = useImmer<boolean>(false);
   const [file, _setFile] = useImmer<File | null>(null);
   const [ready, setReady] = useImmer<boolean>(false);
-  const {institutionCategories, institutionLicenses} = useAuth();
+  const [skipRows, setSkipRows] = useImmer<DataRowStatus["id"][]>([]);
+  const {institutionCategories, institutionLicenses, user, impersonationTarget} = useAuth();
   const {fields, groupItemTypes} = useGroup();
+  const activeUser = impersonationTarget ?? user ?? {quota: 0, used_quota: 0};
+  const [parserContext, setParserContext] = useImmer<ParserContext>({
+    rootDir: undefined,
+    userQuotaRemaining: activeUser.quota - activeUser.used_quota,
+    minCategoryCount: 1,
+    minKeywordCount: 1,
+    maxKeywordCount: 100,
+  });
 
   const field_queries_loaded = institutionCategories && institutionLicenses && fields && groupItemTypes;
 
@@ -219,7 +229,13 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     halt();
     setReady(!!field_queries_loaded);
     if (clearParserContext)
-      setParserContext({});
+      setParserContext({
+        rootDir: undefined,
+        userQuotaRemaining: activeUser.quota - activeUser.used_quota,
+        minCategoryCount: 1,
+        minKeywordCount: 1,
+        maxKeywordCount: 100,
+      });
     _setFile(null);
     setRows([]);
     setLoadErrors([]);
@@ -275,6 +291,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
       const rowId: DataRowId = `${sessionId}-${i}` as DataRowId;
       const initial: DataRowStatus = {
         id: rowId,
+        title: undefined,
         excelRowNumber: i + 2, // ExcelJS uses 1-indexed row numbers and has a header row
         status: 'parsing',
         errors: [],
@@ -314,7 +331,20 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-      <InputDataContext.Provider value={{ rows, ready, file, setFile, halt, reset, loadErrors, loadWarnings, working, parserContext, setParserContext, check }}>
+      <InputDataContext.Provider value={{
+        rows,
+        ready,
+        file, setFile,
+        halt,
+        reset,
+        loadErrors,
+        loadWarnings,
+        working,
+        parserContext, setParserContext,
+        check,
+        skipRows,
+        setSkipRows
+      }}>
         {children}
       </InputDataContext.Provider>
   );

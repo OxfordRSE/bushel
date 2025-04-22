@@ -61,6 +61,8 @@ const users: FigshareUser[] = [
     email: 'mock.user@bodleian.ox.ac.uk',
     orcid_id: null,
     is_active: true,
+    quota: 100000,
+    used_quota: 1000
   },
   {
     id: 2,
@@ -70,6 +72,8 @@ const users: FigshareUser[] = [
     email: 'jane.doe@bodleian.ox.ac.uk',
     orcid_id: null,
     is_active: true,
+    quota: 100000,
+    used_quota: 1000
   },
   {
     id: 3,
@@ -79,6 +83,19 @@ const users: FigshareUser[] = [
     email: 'john.smith@bodleian.ox.ac.uk',
     orcid_id: null,
     is_active: true,
+    quota: 100000,
+    used_quota: 1000
+  },
+  {
+    id: 4,
+    first_name: 'Full',
+    last_name: 'Quota User',
+    url_name: 'full-quota-user',
+    email: 'full.quota.user@bodleian.ox.ac.uk',
+    orcid_id: null,
+    is_active: true,
+    quota: 100000,
+    used_quota: 100000
   },
   ...((n) => {
     return Array.from({ length: n }, (_, i) => ({
@@ -88,7 +105,9 @@ const users: FigshareUser[] = [
       url_name: `user-${i + 1}`,
       email: `user.${i + 1}@example.com`,
       orcid_id: null,
-      is_active: Math.random() > 0.05
+      is_active: Math.random() > 0.05,
+      quota: 100000,
+      used_quota: Math.min(100000, Math.floor(Math.random() * 130000)),
     }))
   })(10000)
 ]
@@ -175,6 +194,18 @@ export const customFields: FigshareCustomField[] = [
 ];
 
 export const articles: FigshareArticle[] = [
+  {
+    id: 0,
+    title: 'Earthquake',
+    description: 'A comprehensive study of Iron Age pottery.',
+    doi: '10.1234/iron-age-pottery',
+    url: 'https://figshare.com/articles/iron-age-pottery-analysis',
+    created_date: '2023-01-01T00:00:00Z',
+    modified_date: '2023-01-01T00:00:00Z',
+    published_date: '2023-01-02T00:00:00Z',
+    status: 'public',
+    group_id: 0,
+  },
   // 100000 articles for group 1
   ...Array.from({ length: 100000 }, (_, i) => ({
     id: i + 1,
@@ -411,16 +442,13 @@ export const figshareHandlers = [
     return HttpResponse.json(filteredFields);
   }),
 
-  http.post('https://api.figshare.com/v2/account/articles/search', ({ params }) => {
-    const body = params as FigshareArticleSearch
-    // Filter articles based on search criteria
-    const filteredArticles = articles.filter(article => {
-      if (body.search_for && !article.title.toLowerCase().includes(body.search_for.toLowerCase())) {
-        return false
-      }
-      return !(body.group && article.group_id !== body.group);
-    })
-    return HttpResponse.json(filteredArticles)
+  http.get('https://api.figshare.com/v2/account/articles', ({ request }) => {
+    // Simulate pagination
+    const url = new URL(request.url);
+    const offset = Number(url.searchParams.get('offset')) || 0;
+    const limit = Number(url.searchParams.get('limit')) || 10;
+    const paginatedArticles = articles.slice(offset, offset + limit);
+    return HttpResponse.json(paginatedArticles)
   }),
 
   http.get('https://api.figshare.com/v2/account/licenses', () => {

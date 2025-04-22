@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 import type {FigshareGroup, FigshareCustomField, FigshareArticle, FigshareItemType} from '@/lib/types/figshare-api';
-import {fetchWithConditionalCache} from '@/lib/fetchWithConditionalCache';
+import {fetchAllPagesWithConditionalCache, fetchWithConditionalCache} from '@/lib/fetchWithConditionalCache';
 import {useAuth} from "@/lib/AuthContext";
 import {FigshareAPIError} from "@/lib/utils";
 
@@ -45,16 +45,19 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       fetchWithConditionalCache<FigshareCustomField[]>(`https://api.figshare.com/v2/account/institution/custom_fields?group_id=${g.id}`, {
         headers: {Authorization: `token ${token}`}
       })
-  .then(setFields)
-  .catch(e => setErrors([...errors, e])),
-      fetchWithConditionalCache<FigshareArticle[]>("https://api.figshare.com/v2/account/articles/search", {
-        headers: {Authorization: `token ${token}`},
-        method: "POST",
-        body: JSON.stringify({
-          group_id: g.id,
-        })
+          .then(setFields)
+          .catch(e => setErrors([...errors, e])),
+      fetchAllPagesWithConditionalCache<FigshareArticle>({
+        baseUrl:`https://api.figshare.com/v2/account/articles`,
+        token,
+        onPage: (page: FigshareArticle[]) => {
+          if (page.length === 0) return;
+          const filtered = page.filter(article => article.group_id === g.id);
+          if (filtered.length > 0) {
+            setArticles(prev => [...(prev || []), ...filtered]);
+          }
+        }
       })
-          .then(setArticles)
           .catch(e => setErrors([...errors, e])),
       fetchWithConditionalCache<FigshareItemType[]>(`https://api.figshare.com/v2/item_types?group_id=${g.id}`, {
         headers: {Authorization: `token ${token}`}

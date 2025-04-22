@@ -8,6 +8,7 @@ import GroupPicker from "@/components/steps/GroupPicker";
 import LoginFeedbackToast from "@/components/LoginFeedbackToast";
 import Impersonation from "@/components/steps/Impersonation";
 import InputDataStep from "@/components/steps/InputDataStep";
+import ResolveDuplicatesStep from "@/components/steps/ResolveDuplicatesStep";
 
 const steps = [
     'Login via FigShare',
@@ -54,6 +55,7 @@ export default function AppFlow() {
             <Impersonation openByDefault={activeStep === 1} onSelect={() => setActiveStep(2)} />
             <GroupPicker openByDefault={activeStep === 2} onSelect={() => setActiveStep(3)} />
             <InputDataStep openByDefault={activeStep === 3} onSuccess={() => setActiveStep(4)} />
+            <ResolveDuplicatesStep openByDefault={activeStep === 4} onSuccess={() => setActiveStep(5)} />
             {/*<div className="w-full">*/}
             {/*    <label className="block mb-2 text-left font-medium">Issues found:</label>*/}
             {/*    <ul className="text-sm text-gray-700 ps-0">*/}
