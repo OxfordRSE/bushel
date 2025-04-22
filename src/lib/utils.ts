@@ -88,7 +88,6 @@ export const toFigshareColumnName = (name: string, allowed_names: string[] = [])
     // Slugify
     const clean = name
         .trim()
-        .replace(/[^a-zA-Z0-9_ ]/g, '_')
         .replace(/\s+/g, ' ')
         .replace(/_+/g, '_')
     // Special cases:

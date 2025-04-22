@@ -161,11 +161,10 @@ async function extractRowsFromSheet({
   const excelColumnNames = colNameMap.map(v => v[1]);
   const mandatoryFields = fieldList.filter(f => f.is_mandatory).map(f => f.name);
   const missingHeaders = mandatoryFields.filter(h => !excelColumnNames.includes(h));
-  if (missingHeaders.length > 0)  throw new Error(`Missing mandatory headers: ${missingHeaders.join(', ')}`);
+  if (missingHeaders.length > 0)  throw new Error(`Missing mandatory columns: ${missingHeaders.join(', ')}`);
   const unrecognisedHeaders = excelColumnNames.filter(h => !fieldNames.includes(h));
   if (unrecognisedHeaders.length > 0) {
-    console.error(`Known headers: ${fieldNames.join(', ')}`);
-    throw new Error(`Unrecognised headers: ${unrecognisedHeaders.join(', ')}`);
+    throw new Error(`Unrecognised column names: ${unrecognisedHeaders.join(', ')}.\nAllowed column names: ${fieldNames.join(', ')}`);
   }
 
   const all_data = worksheet.getSheetValues();
@@ -200,6 +199,17 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         itemTypes: groupItemTypes,
         customFields: fields,
       }));
+      console.log('Setting field list:', combineFields({
+        categories: institutionCategories,
+        licenses: institutionLicenses,
+        itemTypes: groupItemTypes,
+        customFields: fields,
+      }),{
+        categories: institutionCategories,
+        licenses: institutionLicenses,
+        itemTypes: groupItemTypes,
+        customFields: fields,
+      } )
       setReady(true);
     }
   }, [fields]);

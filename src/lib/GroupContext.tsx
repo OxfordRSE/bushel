@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 import type {FigshareGroup, FigshareCustomField, FigshareArticle, FigshareItemType} from '@/lib/types/figshare-api';
-import { fetchAllPagesWithConditionalCache } from '@/lib/fetchWithConditionalCache';
+import {fetchAllPagesWithConditionalCache, fetchWithConditionalCache} from '@/lib/fetchWithConditionalCache';
 import {useAuth} from "@/lib/AuthContext";
 import {FigshareAPIError} from "@/lib/utils";
 
@@ -33,11 +33,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const [errors, setErrors] = useState<FigshareAPIError[]>([]);
 
   const setGroup = async (
-      g: FigshareGroup,
-      opts?: {
-        onFieldPage?: (page: FigshareCustomField[]) => void;
-        onArticlePage?: (page: FigshareArticle[]) => void;
-      }
+      g: FigshareGroup
   ) => {
     setGroupState(g);
     setFields(null);
@@ -46,36 +42,25 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     if (!token) return;
 
     await Promise.all([
-      fetchAllPagesWithConditionalCache<FigshareCustomField>({
-        baseUrl: `https://api.figshare.com/v2/account/institution/custom_fields?group_id=${g.id}`,
-        token,
-        pageSize: 100,
-        onPage: (page) => {
-          setFields((prev) => prev? [...prev, ...page] : page);
-          opts?.onFieldPage?.(page);
-        },
-      }).catch(e => setErrors([...errors, e])),
-      fetchAllPagesWithConditionalCache<FigshareArticle>({
-        baseUrl: "https://api.figshare.com/v2/account/articles/search",
+      fetchWithConditionalCache<FigshareCustomField[]>(`https://api.figshare.com/v2/account/institution/custom_fields?group_id=${g.id}`, {
+        headers: {Authorization: `token ${token}`}
+      })
+  .then(setFields)
+  .catch(e => setErrors([...errors, e])),
+      fetchWithConditionalCache<FigshareArticle[]>("https://api.figshare.com/v2/account/articles/search", {
+        headers: {Authorization: `method ${token}`},
         method: "POST",
         body: JSON.stringify({
           group_id: g.id,
-        }),
-        token,
-        pageSize: 100,
-        onPage: (page) => {
-          setArticles((prev) => prev? [...prev, ...page] : page);
-          opts?.onArticlePage?.(page);
-        },
-      }).catch(e => setErrors([...errors, e])),
-      fetchAllPagesWithConditionalCache<FigshareItemType>({
-        baseUrl: `https://api.figshare.com/v2/item_types?group_id=${g.id}`,
-        token,
-        pageSize: 100,
-        onPage: (page) => {
-          setGroupItemTypes((prev) => prev? [...prev, ...page] : page);
-        },
-      }).catch(e => setErrors([...errors, e])),
+        })
+      })
+          .then(setArticles)
+          .catch(e => setErrors([...errors, e])),
+      fetchWithConditionalCache<FigshareItemType[]>(`https://api.figshare.com/v2/item_types?group_id=${g.id}`, {
+        headers: {Authorization: `token ${token}`}
+      })
+          .then(setGroupItemTypes)
+          .catch(e => setErrors([...errors, e])),
     ]);
   };
 

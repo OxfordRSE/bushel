@@ -401,9 +401,6 @@ export const figshareHandlers = [
   http.get('https://api.figshare.com/v2/account/institution/custom_fields', ({ request }) => {
     const url = new URL(request.url);
     const groupId = Number(url.searchParams.get("group_id"));
-    // Simulate pagination
-    const offset = Number(url.searchParams.get("offset")) || 0;
-    const limit = Number(url.searchParams.get("limit")) || 10;
     const filteredFields = groupId === groups[0].id
         ? customFields.filter(field => field.id > 100000) // Only fields for group 0
         : groupId === 1
@@ -411,8 +408,7 @@ export const figshareHandlers = [
             // This filter means Group 2 will pick up fields for group 2, 20..29, 200..299, etc.
             : customFields.filter(field => /^Group\d+_Field\d+$/.test(field.name) && field.name.startsWith(`Group${groupId}`));
     console.debug(`Filtered fields for group ${groupId}:`, filteredFields);
-    const paginatedFields = filteredFields.slice(offset, offset + limit);
-    return HttpResponse.json(paginatedFields);
+    return HttpResponse.json(filteredFields);
   }),
 
   http.post('https://api.figshare.com/v2/account/articles/search', ({ params }) => {
@@ -424,12 +420,7 @@ export const figshareHandlers = [
       }
       return !(body.group && article.group_id !== body.group);
     })
-    // Paginate results
-    const pageSize = body.page_size || 10
-    const page = body.page || 1
-    const offset = (page - 1) * pageSize
-    const paginatedArticles = filteredArticles.slice(offset, offset + pageSize)
-    return HttpResponse.json(paginatedArticles)
+    return HttpResponse.json(filteredArticles)
   }),
 
   http.get('https://api.figshare.com/v2/account/licenses', () => {

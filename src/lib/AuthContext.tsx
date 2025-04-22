@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { loginWithFigShare } from '@/lib/auth';
 import {FigshareCategory, FigshareLicense, FigshareUser} from "@/lib/types/figshare-api";
-import {fetchAllPagesWithConditionalCache} from "@/lib/fetchWithConditionalCache";
+import {fetchWithConditionalCache} from "@/lib/fetchWithConditionalCache";
 
 type AuthState = {
   token: string | null;
@@ -35,19 +35,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const fetchInstitutionLicenses = async (token: string) => {
-    await fetchAllPagesWithConditionalCache<FigshareLicense>({
-      baseUrl: 'https://api.figshare.com/v2/account/licenses',
-      token,
-      onPage: (page) => setInstitutionLicenses((prev) => prev ? [...prev, ...page] : page),
+    const licenses = await fetchWithConditionalCache<FigshareLicense[]>('https://api.figshare.com/v2/account/licenses',{
+      headers: { Authorization: `token ${token}` }
     });
+    setInstitutionLicenses(licenses);
   }
 
   const fetchInstitutionCategories = async (token: string) => {
-    await fetchAllPagesWithConditionalCache<FigshareCategory>({
-      baseUrl: 'https://api.figshare.com/v2/account/categories',
-      token,
-      onPage: (page) => setInstitutionCategories((prev) => prev ? [...prev, ...page] : page),
+    const categories = await fetchWithConditionalCache<FigshareCategory[]>('https://api.figshare.com/v2/account/categories',{
+      headers: { Authorization: `token ${token}` }
     });
+    setInstitutionCategories(categories);
   }
 
   // Fetch user + token info on mount (via /api/me)
