@@ -102,7 +102,7 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
           {error && (
               <div className="text-sm text-red-600 space-y-2">
                 <p>Error: {error.details}</p>
-                <Button variant="outline" onClick={() => setReloadKey(reloadKey + 1)}>Retry</Button>
+                <Button variant="outline" onClick={() => setReloadKey(reloadKey + 1)} className="cursor-pointer">Retry</Button>
               </div>
           )}
 
@@ -119,7 +119,7 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
                         onSelect?.();
                       }}
                       className={clsx(
-                          "w-full h-fit text-left flex flex-col items-start whitespace-normal break-words p-4 border rounded",
+                          "w-full h-fit text-left flex flex-col items-start whitespace-normal break-words p-4 border rounded cursor-pointer",
                           {"bg-muted": group?.id === g.id}
                       )}
                   >
@@ -136,6 +136,7 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
                 size="sm"
                 onClick={() => setDisplayPage(p => Math.max(1, p - 1))}
                 disabled={displayPage === 1}
+                className="cursor-pointer"
             >
               Previous
             </Button>
@@ -145,6 +146,7 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
                 size="sm"
                 onClick={() => setDisplayPage(p => Math.min(totalDisplayPages, p + 1))}
                 disabled={displayPage >= totalDisplayPages}
+                className="cursor-pointer"
             >
               Next
             </Button>

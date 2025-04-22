@@ -120,13 +120,14 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                     accept=".xlsx"
                     ref={fileInputRef}
                     onChange={handleChange}
+                    className="cursor-pointer"
                 />
 
                 <Button
                     variant="outline"
                     onClick={check}
                     disabled={working || !ready}
-                    className="w-full"
+                    className="w-full cursor-pointer"
                 >
                     {
                         working
@@ -138,9 +139,23 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                 {!group && <p><em>A Group must be selected before the file can be checked.</em></p>}
                 {!!group && !ready && !!file && <p><em>Awaiting group details from FigShare...</em></p>}
 
-                <Button variant="destructive" onClick={halt} disabled={!working}>Halt</Button>
+                <Button
+                    variant="destructive"
+                    onClick={halt}
+                    disabled={!working}
+                    className={"cursor-pointer"}
+                >
+                    Halt
+                </Button>
 
-                <Button variant="ghost" onClick={() => reset(false)} disabled={!file}>Clear File</Button>
+                <Button
+                    variant="ghost"
+                    onClick={() => reset(false)}
+                    disabled={!file}
+                    className={"cursor-pointer"}
+                >
+                    Clear File
+                </Button>
 
                 {(rowsSummary.errors >= maxErrors || rowsSummary.warnings >= maxWarnings) && (
                     <div className="bg-yellow-100 text-yellow-800 text-sm p-3 rounded">

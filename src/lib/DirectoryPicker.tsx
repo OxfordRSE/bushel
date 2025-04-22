@@ -1,4 +1,3 @@
-// components/DirectoryPicker.tsx
 'use client';
 
 import { useState } from 'react';
@@ -15,8 +14,12 @@ export default function DirectoryPicker({ onSelect }: Props) {
 
   const pickDirectory = async () => {
     setError(null);
+    if (!Object.prototype.hasOwnProperty.call(window, 'showDirectoryPicker')) {
+        setError('Directory picker not supported in this browser');
+        return;
+    }
     try {
-      const handle = await window.showDirectoryPicker();
+      const handle = await (window as typeof window & {showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>}).showDirectoryPicker();
       setDirName(handle.name);
       onSelect(handle);
     } catch (err) {
@@ -28,7 +31,7 @@ export default function DirectoryPicker({ onSelect }: Props) {
 
   return (
     <div className="space-y-2">
-      <Button onClick={pickDirectory} variant="outline" className="flex items-center gap-2">
+      <Button onClick={pickDirectory} variant="outline" className="flex items-center gap-2 cursor-pointer">
         <Folder className="w-4 h-4" />
         {dirName ? `Selected: ${dirName}` : 'Select Root Directory for File paths'}
       </Button>

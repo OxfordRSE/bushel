@@ -1,7 +1,6 @@
 'use client';
 
 import {Suspense, useEffect, useState} from 'react';
-import { Input } from '@/components/ui/input';
 import LoginStep from "@/components/steps/LoginStep";
 import {useAuth} from "@/lib/AuthContext";
 import {useGroup} from "@/lib/GroupContext";

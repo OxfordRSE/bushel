@@ -119,7 +119,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
                   setImpersonationTarget(null);
                   onSelect?.();
                 }}
-                className="mb-2"
+                className="mb-2 cursor-pointer"
             >
               <UserX /> Stop impersonating {impersonationTarget.first_name} {impersonationTarget.last_name}
             </Button>
@@ -171,7 +171,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
                         onSelect?.()
                       }}
                       className={clsx([
-                        "w-full h-fit text-left flex flex-col items-start whitespace-normal break-words p-4 border rounded",
+                        "w-full h-fit text-left flex flex-col items-start whitespace-normal break-words p-4 border rounded cursor-pointer",
                         { "bg-muted": impersonationTarget?.id === u.id }
                       ])}
                   >
@@ -188,6 +188,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
                 size="sm"
                 onClick={() => setDisplayPage(p => Math.max(1, p - 1))}
                 disabled={displayPage === 1}
+                className="cursor-pointer"
             >
               Previous
             </Button>
@@ -197,6 +198,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
                 size="sm"
                 onClick={() => setDisplayPage(p => Math.min(totalDisplayPages, p + 1))}
                 disabled={displayPage >= totalDisplayPages}
+                className="cursor-pointer"
             >
               Next
             </Button>
