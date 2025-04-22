@@ -54,4 +54,6 @@ build
 # flyctl launch added from aws_cdk\.gitignore
 aws_cdk
 
+fixtures
+
 fly.toml

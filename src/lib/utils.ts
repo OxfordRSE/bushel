@@ -80,3 +80,28 @@ export const toFigshareAPIError = (err: unknown): FigshareAPIError => {
     if (err instanceof Error) return new FigshareAPIError(0, 'Error', err.message);
     return new FigshareAPIError(-1, '', String(err));
 }
+
+export const toFigshareColumnName = (name: string, allowed_names: string[] = []): string => {
+    if (!name) {
+        throw new Error('Empty name');
+    }
+    // Slugify
+    const clean = name
+        .trim()
+        .replace(/[^a-zA-Z0-9_ ]/g, '_')
+        .replace(/\s+/g, ' ')
+        .replace(/_+/g, '_')
+    // Special cases:
+    if (clean === '' || clean === '_') {
+            throw new Error(`${name} regularises to an blank value`);
+    }
+    // Build regular expressions to fuzzy-match against allowed names
+    const reg_exps = allowed_names.map(
+        (name) => new RegExp(`^${name.replace(/[_ ]/g, '[_ ]')}$`, 'i')
+    );
+    const match = reg_exps.findIndex((re) => re.test(clean));
+    if (match !== -1) {
+        return allowed_names[match];
+    }
+    return clean;
+}

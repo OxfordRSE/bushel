@@ -22,6 +22,7 @@ interface BushelStackProps extends StackProps {
   deploymentDomain: string;
   figshareClientId: string;
   figshareClientSecret: string;
+  skipDomainLookup?: boolean;
 }
 
 export class BushelStack extends Stack {
@@ -35,7 +36,7 @@ export class BushelStack extends Stack {
   constructor(scope: Construct, id: string, props: BushelStackProps) {
     super(scope, id, props);
 
-    const { deploymentDomain, figshareClientId, figshareClientSecret } = props;
+    const { deploymentDomain, figshareClientId, figshareClientSecret, skipDomainLookup } = props;
     const zoneDomain = deploymentDomain.split('.').slice(-2).join('.');
 
     // --- VPC ---
@@ -45,7 +46,7 @@ export class BushelStack extends Stack {
     });
 
     // --- Route53 ---
-    this.zone = process.env.SKIP_LOOKUPS === 'true'
+    this.zone = skipDomainLookup
         ? HostedZone.fromHostedZoneAttributes(this, 'Zone', {
           hostedZoneId: 'DUMMY',
           zoneName: zoneDomain,

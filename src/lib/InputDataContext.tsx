@@ -5,6 +5,7 @@ import ExcelJS from 'exceljs';
 import {useGroup} from "@/lib/GroupContext";
 import {useAuth} from "@/lib/AuthContext";
 import {FigshareCategory, FigshareCustomField, FigshareItemType, FigshareLicense} from "@/lib/types/figshare-api";
+import {toFigshareColumnName} from "@/lib/utils";
 
 interface InputDataContextValue {
   rows: DataRowStatus[];
@@ -126,34 +127,51 @@ function combineFields({
   ];
 }
 
+type ExtractedRowData = {
+  rows: ExcelJS.RowValues[];
+  colNameMap: ColumnNameMapping;
+}
+
 async function extractRowsFromSheet({
                                       file,
                                       fieldList
                                     }: {
   file: File;
   fieldList: Field[];
-}): Promise<ExcelJS.RowValues[]> {
+}): Promise<ExtractedRowData> {
   const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
+  const fieldNames = fieldList.map(f => f.name);
   const worksheet = workbook.worksheets[0];
   if (!worksheet) throw new Error('No sheets found in Excel file.');
+  const colNameMap: ColumnNameMapping = [];
 
   const headers = worksheet.getRow(1).values;
   if (!headers) throw new Error('No headers found in Excel file.');
   if (!(headers instanceof Array)) throw new Error('Invalid headers format in Excel file.');
 
+  headers
+      .map(String)
+      .forEach((header, i) => {
+        colNameMap[i] = [header, toFigshareColumnName(header, fieldNames)]; // ExcelJS uses 1-indexed column numbers
+      });
+
   // Check the headers match the expected fields
+  const excelColumnNames = colNameMap.map(v => v[1]);
   const mandatoryFields = fieldList.filter(f => f.is_mandatory).map(f => f.name);
-  const missingHeaders = mandatoryFields.filter(h => !headers.includes(h));
+  const missingHeaders = mandatoryFields.filter(h => !excelColumnNames.includes(h));
   if (missingHeaders.length > 0)  throw new Error(`Missing mandatory headers: ${missingHeaders.join(', ')}`);
-  const unrecognisedHeaders = headers.filter(h => !fieldList.some(f => f.name === h));
-  if (unrecognisedHeaders.length > 0) throw new Error(`Unrecognised headers: ${unrecognisedHeaders.join(', ')}`);
+  const unrecognisedHeaders = excelColumnNames.filter(h => !fieldNames.includes(h));
+  if (unrecognisedHeaders.length > 0) {
+    console.error(`Known headers: ${fieldNames.join(', ')}`);
+    throw new Error(`Unrecognised headers: ${unrecognisedHeaders.join(', ')}`);
+  }
 
   const all_data = worksheet.getSheetValues();
-  if (all_data.length < 2) throw new Error('No data found in Excel file.');
+  if (all_data.length < 3) throw new Error('No data found in Excel file.');
 
-  return all_data
+  return {rows: all_data.slice(2), colNameMap};
 }
 
 const InputDataContext = createContext<InputDataContextValue | undefined>(undefined);
@@ -209,50 +227,32 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     else if (file) throw new Error('File already set');
     return _setFile(file);
   };
-  
+
   const check = async () => {
     if (!file) {
-        setLoadErrors(errors => [...errors, 'No file selected']);
-        return; 
-    } 
-    if (!ready) {
-        setLoadErrors(errors => [...errors, 'Field queries not yet loaded']);
-        return;
+      setLoadErrors(errors => [...errors, 'No file selected']);
+      return;
     }
-    
+    if (!ready) {
+      setLoadErrors(errors => [...errors, 'Field queries not yet loaded']);
+      return;
+    }
+
     setWorking(true);
-    let rowsFromSheet;
+    let sheetData;
     try {
-      rowsFromSheet = await extractRowsFromSheet({file, fieldList});
-      if (debug) console.debug('rowsFromSheet', rowsFromSheet);
+      sheetData = await extractRowsFromSheet({file, fieldList});
+      if (debug) console.debug('rowsFromSheet', sheetData);
     } catch (e) {
       reset();
       setLoadErrors(errors => [...errors, e instanceof Error? e.message : e]);
       return;
     }
 
+    const {rows: rowsFromSheet, colNameMap} = sheetData
     const sessionId = `upload${sessionRef.current}`;
     const newRows: DataRowStatus[] = [];
     const newParsers: DataRowParser[] = [];
-    const header_row = rowsFromSheet[1]; // ExcelJS returns 1-indexed rows
-    if (!(header_row instanceof Array)) {
-      setLoadErrors(errors => [...errors, 'Cannot read header row']);
-      return;
-    }
-    const headers = header_row.map(String);
-    const colNameMap: ColumnNameMapping = [];
-    headers.forEach((header, i) => {
-        let colName = header.trim();
-        colName = colName.replace(/[^a-zA-Z0-9_]/g, '_'); // Replace non-alphanumeric characters with underscores
-        colName = colName.replace(/_+/g, '_'); // Replace multiple underscores with a single underscore
-        colName = colName.toLowerCase(); // Convert to lowercase
-
-        if (colName === '') {
-            setLoadErrors(errors => [...errors, `Column header ${i + 1} ("${header}") converts to empty name`]);
-            return;
-        }
-        colNameMap[i] = [header, colName]; // ExcelJS uses 1-indexed column numbers
-    });
 
     for (let i = 2; i < rowsFromSheet.length; i++) {
       if (debug) console.debug('row', i, rowsFromSheet[i]);
@@ -301,7 +301,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
 
     setRows(newRows);
     parsersRef.current = newParsers;
-    newParsers.forEach(p => p.runAllChecks());    
+    newParsers.forEach(p => p.runAllChecks());
   }
 
   return (

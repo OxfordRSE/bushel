@@ -15,7 +15,9 @@ export type DataRowId = `upload${number}-${number}`;
 
 // The column name mapping is a list of tuples, where the first element is the
 // column name in the Excel file and the second element is the regularized name
-export type ColumnNameMapping = [string, string][];
+export type ColumnNameMapping = [ExcelFieldName, FigshareFieldName][];
+type FigshareFieldName = string;
+type ExcelFieldName = string;
 
 export interface DataRowStatus {
   id: DataRowId;
