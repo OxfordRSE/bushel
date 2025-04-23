@@ -9,6 +9,8 @@ import LoginFeedbackToast from "@/components/LoginFeedbackToast";
 import Impersonation from "@/components/steps/Impersonation";
 import InputDataStep from "@/components/steps/InputDataStep";
 import ResolveDuplicatesStep from "@/components/steps/ResolveDuplicatesStep";
+import SelectRootDirectoryStep from "@/components/steps/SelectRootDirectoryStep";
+import {useInputData} from "@/lib/InputDataContext";
 
 const steps = [
     'Login via FigShare',
@@ -27,6 +29,7 @@ export default function AppFlow() {
     const [completedSteps, setCompletedSteps] = useState<Partial<StepStatus>>({});
     const {user} = useAuth();
     const {group} = useGroup();
+    const {file, parserContext} = useInputData();
 
     useEffect(() => {
         setCompletedSteps(prev => ({
@@ -34,6 +37,8 @@ export default function AppFlow() {
             [steps[0]]: !!user,
             [steps[1]]: !!user,
             [steps[2]]: !!group,
+            [steps[3]]: !!parserContext.rootDir,
+            [steps[4]]: !!file,
         }));
     }, [user, group, setCompletedSteps]);
 
@@ -54,8 +59,9 @@ export default function AppFlow() {
             }} openByDefault={activeStep === 0}/>
             <Impersonation openByDefault={activeStep === 1} onSelect={() => setActiveStep(2)} />
             <GroupPicker openByDefault={activeStep === 2} onSelect={() => setActiveStep(3)} />
-            <InputDataStep openByDefault={activeStep === 3} onSuccess={() => setActiveStep(4)} />
-            <ResolveDuplicatesStep openByDefault={activeStep === 4} onSuccess={() => setActiveStep(5)} />
+            <SelectRootDirectoryStep openByDefault={activeStep === 3} onSuccess={() => setActiveStep(4)} />
+            <InputDataStep openByDefault={activeStep === 4} onSuccess={() => setActiveStep(5)} />
+            <ResolveDuplicatesStep openByDefault={activeStep === 5} onSuccess={() => setActiveStep(6)} />
             {/*<div className="w-full">*/}
             {/*    <label className="block mb-2 text-left font-medium">Issues found:</label>*/}
             {/*    <ul className="text-sm text-gray-700 ps-0">*/}

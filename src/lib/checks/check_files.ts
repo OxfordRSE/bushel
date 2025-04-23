@@ -1,6 +1,7 @@
 // lib/checks/check_files.ts
 import { DataRowCheck, DataError } from '@/lib/DataRowParser';
 
+// Values with _ are private values updated by the check to enable cross-row tallies
 export type FileRefCheckContext = {
   rootDir?: FileSystemDirectoryHandle;
   userQuotaRemaining?: number;
@@ -11,7 +12,8 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
   async run(parser, emit, context) {
     const files = parser.data?.files;
     const rootDir = context.rootDir as FileSystemDirectoryHandle | undefined;
-    let remainingQuota = context.userQuotaRemaining ?? 0;
+    const remainingQuota = context.userQuotaRemaining ?? 0;
+    let quotaUsed = Number(parser.internalContext.quotaUsed) ?? 0;
 
     if (!Array.isArray(files)) {
       emit({ status: 'skipped', details: 'No files to check' });
@@ -37,15 +39,6 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
     let all_ok = true;
 
     for (const filename of files) {
-      if (typeof filename !== 'string') {
-        if (emit({
-          status: 'in_progress',
-          error: new DataError(`Invalid file entry: ${JSON.stringify(filename)}`, 'InvalidFileRef')
-        })) return;
-        all_ok = false;
-        continue;
-      }
-
       try {
         let file: File;
 
@@ -64,14 +57,15 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
         if (file.size === 0) {
           if (emit({ status: 'in_progress', warning: `File is empty: ${filename}` })) return;
         } else {
-          remainingQuota -= file.size;
-          if (remainingQuota < 0) {
+          quotaUsed += file.size;
+          if (quotaUsed > remainingQuota) {
             emit({
-              status: 'in_progress',
-              error: new DataError(`File size exceeds quota: ${filename}`, 'QuotaExceededError')
+              status: 'failed',
+              error: new DataError(`Storage required for referenced files exceeds remaining FigShare quota (${remainingQuota} bytes). You will only see this error once per spreadsheet because it considers all the files in all rows.`, 'QuotaExceededError')
             });
             return; // Always stop on quota errors because every subsequent file will be invalid
           }
+          parser.setInternalContextEntry("quotaUsed", quotaUsed);  // Update the quota used in context for subsequent checks on other rows
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

@@ -1,4 +1,4 @@
-import {createContext, useContext, useEffect, useRef} from 'react';
+import {createContext, useContext, useEffect, useMemo, useRef} from 'react';
 import {type Updater, useImmer} from 'use-immer';
 import {ColumnNameMapping, DataRowId, DataRowParser, DataRowStatus, ParserContext} from './DataRowParser';
 import ExcelJS from 'exceljs';
@@ -90,7 +90,7 @@ function combineFields({
     {
       name: "item_type",
       field_type: "text",
-      internal_settings: { options: itemTypeNames },
+      internal_settings: { options: itemTypeNames, is_array: true },
       is_mandatory: true
     },
     // Mandatory fields with set definitions
@@ -193,16 +193,22 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const [file, _setFile] = useImmer<File | null>(null);
   const [ready, setReady] = useImmer<boolean>(false);
   const [skipRows, setSkipRows] = useImmer<DataRowStatus["id"][]>([]);
-  const {institutionCategories, institutionLicenses, user, impersonationTarget} = useAuth();
+  const {institutionCategories, institutionLicenses, targetUser} = useAuth();
   const {fields, groupItemTypes} = useGroup();
-  const activeUser = impersonationTarget ?? user ?? {quota: 0, used_quota: 0};
   const [parserContext, setParserContext] = useImmer<ParserContext>({
     rootDir: undefined,
-    userQuotaRemaining: activeUser.quota - activeUser.used_quota,
+    userQuotaRemaining: (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0),
     minCategoryCount: 1,
     minKeywordCount: 1,
     maxKeywordCount: 100,
   });
+
+  useEffect(() => {
+    setParserContext((draft) => {
+      draft.userQuotaRemaining = (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0);
+      return draft;
+    })
+  }, [targetUser]);
 
   const field_queries_loaded = institutionCategories && institutionLicenses && fields && groupItemTypes;
 
@@ -231,7 +237,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     if (clearParserContext)
       setParserContext({
         rootDir: undefined,
-        userQuotaRemaining: activeUser.quota - activeUser.used_quota,
+        userQuotaRemaining: (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0),
         minCategoryCount: 1,
         minKeywordCount: 1,
         maxKeywordCount: 100,

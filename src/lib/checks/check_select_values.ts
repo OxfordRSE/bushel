@@ -1,33 +1,39 @@
 import {DataError, DataRowCheck} from '@/lib/DataRowParser';
+import {fuzzyCoerce} from "@/lib/utils";
 
 export const selectValuesCheck: DataRowCheck<never> = {
-  name: 'Check Select values',
-  async run(parser, emit) {
+    name: 'Check Select values',
+    async run(parser, emit) {
 
-    if (emit({ status: 'in_progress' })) return;
+        if (emit({ status: 'in_progress' })) return;
 
-    if (!parser.data) {
-      emit({ status: 'failed', details: 'No data to check' });
-      return;
-    }
-
-    for (const key in parser.data) {
-        const field = parser.fields.find(f => f.name === key);
-        const options = field?.internal_settings?.options;
-        if (!options) continue;
-        const value = parser.data[key];
-        if (!(value instanceof Array)) {
-            if (emit({ status: 'failed', error: new DataError(`${key} must be an array (not "${value}")`, 'InvalidValueError') })) return;
+        if (!parser.data) {
+            emit({ status: 'failed', details: 'No data to check' });
+            return;
         }
-        const vv = value as string[];
-        for (let i = 0; i < vv.length; i++) {
-          const v = String(vv[i]);
-          if (!options.includes(v)) {
-            if(emit({ status: 'failed', error: new DataError(`${v} is not a valid option for ${key}`, 'InvalidOptionError') })) return;
-          }
-        }
-    }
 
-    emit({ status: 'success', details: 'All select fields have legitimate values' });
-  }
+        for (const key in parser.data) {
+            const field = parser.fields.find(f => f.name === key);
+            const options = field?.internal_settings?.options;
+            if (!options) continue;
+            const value = parser.data[key];
+            const vv = value instanceof Array? value : [String(value)];
+            for (let i = 0; i < vv.length; i++) {
+                const v = String(vv[i]);
+                const fuzzy = fuzzyCoerce(v, options);
+                if (!options.includes(fuzzy)) {
+                    if(emit({ status: 'failed', error: new DataError(`${v} is not a valid option for ${key}`, 'InvalidOptionError') })) return;
+                } else if (fuzzy !== v) {
+                    if (Array.isArray(parser.data[key]))
+                        parser.data[key][i] = fuzzy;
+                    else
+                        parser.data[key] = fuzzy;
+                    if (emit({ status: 'in_progress', details: `Coerced "${v}" to "${fuzzy}"` })) return;
+                }
+            }
+        }
+
+        emit({ status: 'success', details: 'All select fields have legitimate values' });
+    }
 };
+

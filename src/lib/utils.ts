@@ -81,27 +81,45 @@ export const toFigshareAPIError = (err: unknown): FigshareAPIError => {
     return new FigshareAPIError(-1, '', String(err));
 }
 
+export const cleanString = (value: string): string => {
+    return value
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/_+/g, '_')
+        .replace(/-+/g, '-');
+}
+
+export const stringToFuzzyRegex = (value: string): RegExp => {
+    return new RegExp(
+        `^${value.replace(/[_ -]/g, '[_ -]').replace(/\.$/, '')}\.?$`,
+        'i'
+    );
+}
+
+export const fuzzyCoerce = (value: string, target_values: string[], clean_value = true, compiled_regexs?: RegExp[]): string => {
+    if (clean_value) {
+        value = cleanString(value);
+    }
+    if (compiled_regexs && (compiled_regexs.length !== target_values.length)) {
+        throw new Error('Compiled regexs and target values must be the same length');
+    }
+    const reg_exps = compiled_regexs ?? target_values.map(stringToFuzzyRegex);
+    const match = reg_exps.findIndex((re) => re.test(value));
+    if (match !== -1) {
+        return target_values[match] as string;
+    }
+    return value;
+}
+
 export const toFigshareColumnName = (name: string, allowed_names: string[] = []): string => {
     if (!name) {
         throw new Error('Empty name');
     }
     // Slugify
-    const clean = name
-        .trim()
-        .replace(/\s+/g, ' ')
-        .replace(/_+/g, '_')
-        .replace(/^licence$/i, 'license')
+    const clean = cleanString(name).replace(/^licence$/i, 'license')
     // Special cases:
     if (clean === '' || clean === '_') {
             throw new Error(`${name} regularises to an blank value`);
     }
-    // Build regular expressions to fuzzy-match against allowed names
-    const reg_exps = allowed_names.map(
-        (name) => new RegExp(`^${name.replace(/[_ ]/g, '[_ ]')}$`, 'i')
-    );
-    const match = reg_exps.findIndex((re) => re.test(clean));
-    if (match !== -1) {
-        return allowed_names[match];
-    }
-    return clean;
+    return fuzzyCoerce(clean, allowed_names, false)
 }

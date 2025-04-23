@@ -71,6 +71,8 @@ export interface DataRowCheck<T extends DataRowCheckContext> {
   ): Promise<void>;
 }
 
+type ParsedCellContentType = string|string[]
+
 /* DataRowParser is a class that parses a row of data from an Excel file
 * and runs a series of checks on it. It is used to validate the data
 * before uploading it to Figshare.
@@ -79,13 +81,17 @@ export interface DataRowCheck<T extends DataRowCheckContext> {
 * Any columns that are in `columnNameMapping` but not in `fields` will be dropped during ingestion.
 * */
 export class DataRowParser {
-  public data: Record<string, unknown>|null = null;
+  public data: Record<string, ParsedCellContentType>|null = null;
   private terminated = false;
   public checks: Record<string, CheckResult[]> = {
     'Read data': [{ status: 'pending' }],
     [fileRefCheck.name]: [{ status: 'pending' }],
     [dateFormatCheck.name]: [{ status: 'pending' }],
+    [categoryCountCheck.name]: [{ status: 'pending' }],
+    [keywordCountCheck.name]: [{ status: 'pending' }],
+    [selectValuesCheck.name]: [{ status: 'pending' }],
   };
+  private _internalContext: DataRowCheckContext = {}
 
   constructor(
       public readonly input_data: unknown[],
@@ -98,6 +104,13 @@ export class DataRowParser {
 
   terminate() {
     this.terminated = true;
+  }
+
+  get internalContext() {
+    return this._internalContext;
+  }
+  setInternalContextEntry(key: string, value: unknown) {
+    this.internalContext[key] = value;
   }
 
   private maybeUpdate(patch: Partial<DataRowStatus>) {
@@ -116,7 +129,7 @@ export class DataRowParser {
         warnings: [
           ...Object.entries(this.checks)
               .map(([check, results]) => results.reduce(
-                  (acc, r) => r.warning ? [...acc, `${check}: ${r.warning}`] : acc, [] as string[]
+                  (acc, r) => r.warning ? [...acc, `[${check}] ${r.warning}`] : acc, [] as string[]
               ))
         ]
             .flat()
@@ -157,15 +170,19 @@ export class DataRowParser {
               if (header === 'title') {
                 title = this.input_data[i + 1] as string;
               }
-              let value = this.input_data[i + 1];  // ExcelJS uses 1-indexed column numbers
               const field = this.fields.find(f => f.name === header);
               if (!field) return null
-              if (field.internal_settings.is_array && typeof value === 'string') {
-                value = value.split(/;\s+/).map(v => v.trim());
+              if (this.input_data[i + 1] === undefined) {
+                return [header, null];
               }
-              return [header, value ?? null];
+              const input = String(this.input_data[i + 1]).trim();  // ExcelJS uses 1-indexed column numbers
+              let value: ParsedCellContentType = input;
+              if (field.internal_settings.is_array) {
+                value = input.split(/;\s*/).map(v => v.trim()).filter(v => v.length > 0);
+              }
+              return [header, value];
             })
-            .filter(entry => entry !== null) as [string, unknown][]
+            .filter(entry => entry !== null) as [string, ParsedCellContentType][]
     )
     if (!title) {
       throw new DataError('No title found in row', 'MissingTitle');
@@ -179,9 +196,9 @@ export class DataRowParser {
 
   async runCheck(check: DataRowCheck<ParserContext>): Promise<void> {
     if (this.terminated) return;
-    this.report(check.name)({
+    if (this.report(check.name)({
       status: 'pending',
-    });
+    })) return;
     await check.run(this, this.report(check.name), this.context);
   }
 
@@ -189,33 +206,24 @@ export class DataRowParser {
     const debug = (...args: unknown[]) => {
       if (process.env.NODE_ENV === 'development') console.debug(this.id, ...args, this.checks);
     }
-    try {
-      debug('Read data')
-      await this.runCheck({
-        name: 'Read data',
-        run: async (parser) => await parser.expand_row_data(),
-      });
-      debug(fileRefCheck.name)
-      await this.runCheck(fileRefCheck);
-      debug(categoryCountCheck.name)
-      await this.runCheck(categoryCountCheck);
-      debug(keywordCountCheck.name)
-      await this.runCheck(keywordCountCheck);
-      debug(selectValuesCheck.name)
-      await this.runCheck(selectValuesCheck);
-      debug(dateFormatCheck.name)
-      await this.runCheck(dateFormatCheck);
+    debug('Read data')
+    await this.runCheck({
+      name: 'Read data',
+      run: async (parser) => await parser.expand_row_data(),
+    });
+    debug(fileRefCheck.name)
+    await this.runCheck(fileRefCheck);
+    debug(categoryCountCheck.name)
+    await this.runCheck(categoryCountCheck);
+    debug(keywordCountCheck.name)
+    await this.runCheck(keywordCountCheck);
+    debug(selectValuesCheck.name)
+    await this.runCheck(selectValuesCheck);
+    debug(dateFormatCheck.name)
+    await this.runCheck(dateFormatCheck);
 
-      const hasErrors = Object.values(this.checks).some(results => results.some(c => c.status === 'failed'));
-      this.maybeUpdate({status: hasErrors ? 'error' : 'valid'});
-    } catch (err) {
-      const error = err instanceof DataError ? err : new DataError(err instanceof Error? err.message : 'Unknown error during parsing', 'UnhandledError');
-      this.maybeUpdate({
-        status: 'error',
-        errors: [error],
-      });
-      this.terminated = true;
-    }
+    const hasErrors = Object.values(this.checks).some(results => results.some(c => c.status === 'failed'));
+    this.maybeUpdate({status: hasErrors ? 'error' : 'valid'});
   }
 
   public get complete() {

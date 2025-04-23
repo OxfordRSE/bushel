@@ -10,12 +10,10 @@ import {DataRowStatus} from "@/lib/DataRowParser";
 import {TriangleAlertIcon} from "lucide-react";
 import {cleanString, fuzzyCoerce, stringToFuzzyRegex} from "@/lib/utils";
 
-export default function ResolveDuplicatesStep({
-                                                  openByDefault,
-                                                  onSuccess,
-                                              }: {
+export default function UploadStep({
+                                       openByDefault,
+                                   }: {
     openByDefault?: boolean;
-    onSuccess?: () => void;
 }) {
     const { rows, skipRows, setSkipRows} = useInputData();
     const { articles} = useGroup();

@@ -15,6 +15,8 @@ type AuthState = {
   logout: () => void;
   institutionLicenses: FigshareLicense[] | null;
   institutionCategories: FigshareCategory[] | null;
+  // impersonationTarget if set, otherwise user
+  targetUser: FigshareUser | null;
 };
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -80,7 +82,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
       <AuthContext.Provider
-          value={{ token, user, isLoggedIn: !!user, login, logout, impersonationTarget, setImpersonationTarget, institutionCategories, institutionLicenses}}
+          value={{
+            token,
+            user,
+            isLoggedIn: !!user,
+            login,
+            logout,
+            impersonationTarget,
+            setImpersonationTarget,
+            institutionCategories,
+            institutionLicenses,
+            targetUser: impersonationTarget ?? user
+      }}
       >
         {children}
       </AuthContext.Provider>

@@ -206,9 +206,21 @@ export const articles: FigshareArticle[] = [
     status: 'public',
     group_id: 0,
   },
+  {
+    id: 1,
+    title: 'Cape_Koma',
+    description: 'A comprehensive study of Iron Age pottery.',
+    doi: '10.1234/iron-age-pottery',
+    url: 'https://figshare.com/articles/iron-age-pottery-analysis',
+    created_date: '2023-01-01T00:00:00Z',
+    modified_date: '2023-01-01T00:00:00Z',
+    published_date: '2023-01-02T00:00:00Z',
+    status: 'public',
+    group_id: 0,
+  },
   // 100000 articles for group 1
   ...Array.from({ length: 100000 }, (_, i) => ({
-    id: i + 1,
+    id: i + 2,
     title: articleTitle(i + 1),
     description: `Detailed analysis of item ${i + 1}.`,
     doi: `10.1234/shard.${i + 1}`,
@@ -224,7 +236,7 @@ export const articles: FigshareArticle[] = [
   ...Array.from({ length: 250 }, (_, i) => {
     const groupId = (i % 249) + 2; // skip group 1
     return {
-      id: 100001 + i,
+      id: 110000 + i,
       title: articleTitle(i + 1),
       description: `Article ${i + 1} details findings in group ${groupId}.`,
       doi: `10.5678/group${groupId}.${i + 1}`,
@@ -239,28 +251,83 @@ export const articles: FigshareArticle[] = [
 ];
 
 const licenses: FigshareLicense[] = [
-  {
-    value: 1,
-    name: "CC BY",
-    url: "https://creativecommons.org/licenses/by/4.0/"
-  },
-  {
-    value: 2,
-    name: "CC BY-NC",
-    url: "https://creativecommons.org/licenses/by-nc/4.0/"
-  },
-  {
-    value: 3,
-    name: "CC BY-SA",
-    url: "https://creativecommons.org/licenses/by-sa/4.0/"
-  }
+    {
+        "value": 1,
+        "name": "CC BY 4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+        "value": 43,
+        "name": "In Copyright",
+        "url": "http://rightsstatements.org/vocab/InC/1.0/"
+    },
+    {
+        "value": 12,
+        "name": "CC BY-NC-ND 4.0",
+        "url": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+    },
+    {
+        "value": 11,
+        "name": "CC BY-NC-SA 4.0",
+        "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    },
+    {
+        "value": 10,
+        "name": "CC BY-NC 4.0",
+        "url": "https://creativecommons.org/licenses/by-nc/4.0/"
+    },
+    {
+        "value": 9,
+        "name": "CC BY-ND 4.0",
+        "url": "https://creativecommons.org/licenses/by-nd/4.0/"
+    },
+    {
+        "value": 8,
+        "name": "CC BY-SA 4.0",
+        "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+        "value": 7,
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    {
+        "value": 6,
+        "name": "GPL 3.0+",
+        "url": "https://www.gnu.org/licenses/gpl-3.0.html"
+    },
+    {
+        "value": 5,
+        "name": "GPL 2.0+",
+        "url": "https://www.gnu.org/licenses/gpl-2.0.html"
+    },
+    {
+        "value": 4,
+        "name": "GPL",
+        "url": "https://www.gnu.org/copyleft/gpl.html"
+    },
+    {
+        "value": 3,
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT"
+    },
+    {
+        "value": 2,
+        "name": "CC0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    {
+        "value": 163,
+        "name": "JJC copyright and permissions",
+        "url": "https://jamesjoycecorrespondence.org/FM_04.xml?tab=0"
+    }
 ]
 
 const categories: FigshareCategory[] = [
   {
     "parent_id": 1,
     "id": 11,
-    "title": "Archaeology",
+    "title": "Historical",
     "path": "/450/1024/6532",
     "source_id": "300204",
     "taxonomy_id": 4
@@ -268,7 +335,7 @@ const categories: FigshareCategory[] = [
   {
     "parent_id": 1,
     "id": 12,
-    "title": "Anthropology",
+    "title": "comparative and typological linguistics",
     "path": "/450/1024/6533",
     "source_id": "300205",
     "taxonomy_id": 4
@@ -276,7 +343,7 @@ const categories: FigshareCategory[] = [
   {
     "parent_id": 1,
     "id": 13,
-    "title": "History",
+    "title": "Linguistic anthropology",
     "path": "/450/1024/6534",
     "source_id": "300206",
     "taxonomy_id": 4
@@ -391,6 +458,24 @@ const itemTypes: FigshareItemType[] = [
     "public_description": "Any type of content contributed to an academic conference, such as papers, presentations, lectures or proceedings.",
     "is_selectable": true,
     "url_name": "conference_contribution"
+  },
+  {
+    "id": 15,
+    "name": "report",
+    "string_id": "report",
+    "icon": "report",
+    "public_description": "Reports are usually a detailed account of a research project, often including findings, analysis and conclusions.",
+    "is_selectable": true,
+    "url_name": "report"
+  },
+  {
+    "id": 16,
+    "name": "education resource",
+    "string_id": "education_resource",
+    "icon": "educationresource",
+    "public_description": "Any type of resource used for educational purposes.",
+    "is_selectable": true,
+    "url_name": "education_resource"
   }
 ]
 

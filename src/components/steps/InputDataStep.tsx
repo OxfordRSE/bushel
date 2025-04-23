@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState} from 'react';
+import {useMemo, useRef, useState} from 'react';
 import { useInputData } from '@/lib/InputDataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import StepPanel from '@/components/steps/StepPanel';
-import {AlertTriangle, CheckSquare, CogIcon, InfoIcon, StopCircle} from "lucide-react";
+import {AlertTriangle, CheckSquare, ChevronDown, ChevronUp, CogIcon, InfoIcon, StopCircle} from "lucide-react";
 import {DataRowStatus} from "@/lib/DataRowParser";
-import {useImmer} from "use-immer";
-import DirectoryPicker from "@/lib/DirectoryPicker";
 import {useGroup} from "@/lib/GroupContext";
 
 type RowsSummary = Record<DataRowStatus["status"], number> & {
@@ -25,54 +24,45 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
     const {group} = useGroup();
     const [maxWarnings, setMaxWarnings] = useState(20);
     const [maxErrors, setMaxErrors] = useState(20);
-    const [rowsSummary, setRowsSummary] = useImmer<RowsSummary>({
-        error: 0,
-        parsing: 0,
-        valid: 0,
-        total: 0,
-        errors: 0,
-        warnings: 0,
-        warning: 0,
-    });
-    const [showHelp, setShowHelp] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showChecksList, setShowChecksList] = useState(false);
 
-    const resetFile = () => {
-        reset(false)
-        setRowsSummary({
-            error: 0,
-            parsing: 0,
-            valid: 0,
+    const rowsSummary = useMemo(() => {
+        const summary: RowsSummary = {
             total: 0,
+            valid: 0,
+            parsing: 0,
+            error: 0,
             errors: 0,
-            warnings: 0,
             warning: 0,
-        })
-    }
-
-    useEffect(() => {
-        const summary: Partial<RowsSummary> = {}
+            warnings: 0
+        }
         rows.forEach(row => {
-            summary[row.status] = (summary[row.status] || 0) + 1;
+            summary[row.status] = summary[row.status] + 1;
             summary.total = (summary.total || 0) + 1;
             summary.errors = (summary.errors || 0) + row.errors.length;
             summary.warnings = (summary.warnings || 0) + row.warnings.length;
         });
         summary.warning = rows.filter(r => r.warnings.length > 0).length;
-        setRowsSummary(draft => {
-            Object.keys(summary).forEach(key => {
-                draft[key as keyof RowsSummary] = summary[key as keyof RowsSummary] || 0;
-            });
-        });
-        if (summary.valid === rows.length) {
-            onSuccess?.();
-        } else if ((summary.errors ?? 0) > maxErrors || (summary.warnings ?? 0) > maxWarnings) {
-            halt();
-        }
+        return summary
     }, [rows]);
 
+    if (rowsSummary.valid === rows.length && rows.length > 0) {
+        onSuccess?.();
+    } else if ((rowsSummary.errors ?? 0) > maxErrors || (rowsSummary.warnings ?? 0) > maxWarnings) {
+        halt();
+    }
+
+    const resetFile = (clearInput = true) => {
+        if (clearInput && fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+        reset(false)
+    }
+
+
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        resetFile()
+        resetFile(false)
         const file = e.target.files?.[0];
         if (!file) return;
         try {
@@ -97,7 +87,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
     } else if (rowsSummary.valid === rows.length) {
         if (rowsSummary.warnings > 0)
             summary = <span className={"flex items-center"}>
-                All {rows.length} rows successfully checked (<AlertTriangle className="inline-block w-4 h-4 text-yellow-600" />
+                All {rows.length} rows successfully checked (<AlertTriangle className="inline-block w-4 h-4 text-yellow-600 me-1" />
                 {rowsSummary.warnings} warnings in {rowsSummary.warning} rows)
             </span>;
         else
@@ -130,29 +120,34 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
         >
             <div className="space-y-4">
                 <div className="text-sm text-gray-600 space-y-1">
-                    <button
-                        className="text-blue-600 text-sm mb-2"
-                        onClick={() => setShowAdvanced(s => !s)}
-                    >
-                        {showAdvanced ? 'Hide advanced options' : 'Show advanced options'}
-                    </button>
-                    {showAdvanced && (
-                        <div className="space-y-2 text-sm">
-                            <div className="flex gap-4">
-                                <p>Validation will halt once the number of warnings or errors exceeds your limits.</p>
-                                <label className="flex items-center gap-2">
-                                    Max warnings:
-                                    <Input type="number" min={0} value={maxWarnings}
-                                           onChange={e => setMaxWarnings(+e.target.value)} className="w-20"/>
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    Max errors:
-                                    <Input type="number" min={0} value={maxErrors}
-                                           onChange={e => setMaxErrors(+e.target.value)} className="w-20"/>
-                                </label>
+                    <section className="pl-2 pr-1 pb-4 pt-2 bg-white space-y-2">
+                        <button
+                            type="button"
+                            className="flex items-center justify-between text-left cursor-pointer"
+                            onClick={() => setShowAdvanced(o => !o)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <h2 className="font-semibold text-lg">Advanced options</h2>
                             </div>
-                            <div className="flex gap-4">
-                                <label className="flex items-center gap-2">
+                            {showAdvanced ? <ChevronUp className="w-4 h-4 ms-4"/> :
+                                <ChevronDown className="w-4 h-4 ms-4"/>}
+                        </button>
+                        {showAdvanced && (
+                            <div className="space-y-2 text-sm">
+                                <p>Validation will halt once the number of warnings or errors exceeds your limits.</p>
+                                <div className="flex gap-4">
+                                    <Label className="flex items-center gap-2">
+                                        Max warnings:
+                                        <Input type="number" min={0} value={maxWarnings}
+                                               onChange={e => setMaxWarnings(+e.target.value)} className="w-20"/>
+                                    </Label>
+                                    <Label className="flex items-center gap-2">
+                                        Max errors:
+                                        <Input type="number" min={0} value={maxErrors}
+                                               onChange={e => setMaxErrors(+e.target.value)} className="w-20"/>
+                                    </Label>
+                                </div>
+                                <Label className="flex items-center gap-2">
                                     Min categories:
                                     <Input
                                         type="number"
@@ -163,58 +158,45 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                                         }
                                         className="w-20"
                                     />
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    Keywords min:
+                                </Label>
+                                <div className="flex gap-4">
+                                    <Label className="flex items-center gap-2">
+                                        Keywords min:
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={parserContext.minKeywordCount ?? 1}
+                                            onChange={e =>
+                                                setParserContext({...parserContext, minKeywordCount: +e.target.value})
+                                            }
+                                            className="w-20"
+                                        />
+                                    </Label>
+                                    <Label className="flex items-center gap-2">
+                                        Keywords max:
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={parserContext.maxKeywordCount ?? 100}
+                                            onChange={e =>
+                                                setParserContext({...parserContext, maxKeywordCount: +e.target.value})
+                                            }
+                                            className="w-20"
+                                        />
+                                    </Label>
+                                </div>
+                                <Label className="flex items-center gap-2">
+                                    FigShare quota remaining (bytes):
                                     <Input
-                                        type="number"
-                                        min={0}
-                                        value={parserContext.minKeywordCount ?? 1}
-                                        onChange={e =>
-                                            setParserContext({...parserContext, minKeywordCount: +e.target.value})
-                                        }
+                                        type="text"
+                                        disabled
+                                        value={parserContext.userQuotaRemaining}
                                         className="w-20"
                                     />
-                                </label>
-                                <label className="flex items-center gap-2">
-                                    Keywords max:
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        value={parserContext.maxKeywordCount ?? 100}
-                                        onChange={e =>
-                                            setParserContext({...parserContext, maxKeywordCount: +e.target.value})
-                                        }
-                                        className="w-20"
-                                    />
-                                </label>
+                                </Label>
                             </div>
-                        </div>
-                    )}
-
-                    <div className={"flex items-center"}>
-                        <DirectoryPicker onSelect={(dir) => {
-                            setParserContext({...parserContext, rootDir: dir})
-                        }}/>
-                        <Button variant="ghost" className="ms-4 cursor-pointer text-blue-500"
-                                onClick={() => setShowHelp(!showHelp)}>
-                            <InfoIcon className={"w-4 h-4"}/> {showHelp ? 'Hide' : 'Show'} help
-                        </Button>
-                    </div>
-                    {
-                        showHelp && (
-                            <div className="text-sm text-gray-500 mt-2">
-                                <p>The tool will upload files to FigShare as well as the metadata.</p>
-                                <p>
-                                    Web browsers only allow very tightly controlled access to the files on your computer.
-                                    As a result, all files referenced in your Excel spreadsheet must appear inside
-                                    a &#39;root&#39; directory on your computer.
-                                    Selecting the root directory using this button will allow the tool to see all files within that directory.
-                                    When files are checked, their paths will be checked <em>relative to the root directory</em>.
-                                </p>
-                            </div>
-                        )
-                    }
+                        )}
+                    </section>
                 </div>
 
                 <Input
@@ -252,7 +234,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
 
                 <Button
                     variant="ghost"
-                    onClick={resetFile}
+                    onClick={() => resetFile()}
                     disabled={!file}
                     className={"cursor-pointer ms-4"}
                 >
@@ -300,7 +282,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                                 .map((r, i) =>
                                     r.errors.map((error, j) => (
                                         <li key={`${i}-${j}`}>
-                                            Row {r.excelRowNumber}: {error.message} ({error.kind})
+                                            <strong>Row {r.excelRowNumber}:</strong> {error.message} ({error.kind})
                                         </li>
                                     )))}
                         </ul>
@@ -314,7 +296,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                                 .map((r, i) =>
                                     r.warnings.map((w, j) => (
                                         <li key={`${i}-${j}`}>
-                                            Row {r.excelRowNumber}: {w}
+                                            <strong>Row {r.excelRowNumber}:</strong> {w}
                                         </li>
                                     ))
                                 )}
@@ -322,6 +304,53 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                     </div>
                 )}
             </div>
+
+            <section className="pl-2 pr-1 pt-4 bg-white space-y-2">
+                <button
+                    type="button"
+                    className="flex items-center justify-between text-left cursor-pointer"
+                    onClick={() => setShowChecksList(o => !o)}
+                >
+                    <div className="flex items-center gap-2">
+                        <InfoIcon className="w-5 h-5"/>
+                        <h2 className="font-semibold text-lg">Checks list</h2>
+                    </div>
+                    {showChecksList ? <ChevronUp className="w-4 h-4 ms-4"/> : <ChevronDown className="w-4 h-4 ms-4"/>}
+                </button>
+                {showChecksList && (
+                    <div className="text-sm text-gray-500" id="checks-list">
+                        <p>Checks will be run on the data in the spreadsheet. The following checks are performed:</p>
+                        <dl>
+                            <dt>Spreadsheet structure</dt>
+                            <dd>The spreadsheet contains the mandatory FigShare columns. Other columns are checked against
+                                Custom Fields for the group, and unmatched columns are flagged with warnings.
+                            </dd>
+                            <dt>Item structure</dt>
+                            <dd>Each item is correctly formatted with value in the necessary columns.</dd>
+                            <dt>File references</dt>
+                            <dd>All file paths in the Files column resolve to existing files in the root directory.</dd>
+                            <dt>FigShare Quota</dt>
+                            <dd>The combined filesize of all paths in the Files column does not exceed the remaining quota
+                                for the uploading account.
+                            </dd>
+                            <dt>Date format</dt>
+                            <dd>TODO: this is not yet implemented</dd>
+                            <dt>Categories</dt>
+                            <dd>All categories are valid and exist in FigShare. Each item has at
+                                least {parserContext.minCategoryCount} categories.
+                            </dd>
+                            <dt>Keywords</dt>
+                            <dd>Each item has
+                                between {parserContext.minKeywordCount} and {parserContext.maxKeywordCount} keywords.
+                            </dd>
+                            <dt>Preset field values</dt>
+                            <dd>All values in Categories, License, and similar fields are legitimate FigShare values
+                                (correcting for capitalisation and similar differences).
+                            </dd>
+                        </dl>
+                    </div>
+                )}
+            </section>
         </StepPanel>
     );
 }
