@@ -6,16 +6,17 @@ import {useInputData} from "@/lib/InputDataContext";
 import {DataRowStatus} from "@/lib/DataRowParser";
 import {CogIcon, TriangleAlertIcon} from "lucide-react";
 import {useImmer} from "use-immer";
-import {clsx} from "clsx";
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import UploadRow from "@/components/UploadRow";
 import {Button} from "@/components/ui/button";
+import {useAuth} from "@/lib/AuthContext";
 
 export default function UploadStep({
                                        openByDefault,
                                    }: {
     openByDefault?: boolean;
 }) {
+    const {impersonationTarget} = useAuth();
     const { rows, skipRows} = useInputData();
     const [running, setRunning] = useState(false);
     const [status, setStatus] = useImmer<Record<DataRowStatus["id"], "skipped"|"in progress"|"complete"|"error">>({});
@@ -61,6 +62,7 @@ export default function UploadStep({
             openByDefault={openByDefault}
         >
             <div className="space-y-4">
+                <p>Ready to upload <strong>{rows.length} Articles</strong>. Please make sure {impersonationTarget?.first_name? `${impersonationTarget.first_name} has` : 'you have'} enough headroom to create these articles.</p>
                 <div className="overflow-x-auto border rounded-md bg-white shadow-sm">
                     <Table>
                         <TableHeader>
