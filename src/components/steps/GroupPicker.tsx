@@ -6,7 +6,6 @@ import { FigshareGroup } from '@/lib/types/figshare-api';
 import StepPanel from '@/components/steps/StepPanel';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { fetchAllPagesWithConditionalCache } from '@/lib/fetchWithConditionalCache';
 import {clsx} from "clsx";
 import {useGroup} from "@/lib/GroupContext";
 import {FigshareAPIError} from "@/lib/utils";
@@ -14,7 +13,7 @@ import {FigshareAPIError} from "@/lib/utils";
 const DISPLAY_PAGE_SIZE = 20;
 
 export default function GroupPicker({ openByDefault = false, onSelect }: { openByDefault?: boolean, onSelect?: () => void }) {
-  const { token } = useAuth();
+  const { token, fsFetchPaginated } = useAuth();
   const [search, setSearch] = useState('');
   const [displayPage, setDisplayPage] = useState(1);
   const [allGroups, setAllGroups] = useState<FigshareGroup[]>([]);
@@ -33,13 +32,10 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
     setError(null);
     setAllGroups([]);
 
-    fetchAllPagesWithConditionalCache<FigshareGroup>({
-      baseUrl: 'https://api.figshare.com/v2/account/institution/groups',
-      token,
-      onPage: (newGroups) => {
-        setAllGroups(prev => [...prev, ...newGroups]);
-      }
-    }).catch(setError).finally(() => setLoading(false));
+    fsFetchPaginated<FigshareGroup>(
+        'https://api.figshare.com/v2/account/institution/groups',
+        (newGroups) => setAllGroups(prev => [...prev, ...newGroups])
+    ).catch(setError).finally(() => setLoading(false));
   };
 
   useEffect(() => {

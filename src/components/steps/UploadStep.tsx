@@ -1,135 +1,119 @@
 'use client';
 
 import {useEffect, useMemo, useState} from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
 import StepPanel from '@/components/steps/StepPanel';
 import {useInputData} from "@/lib/InputDataContext";
-import {useGroup} from "@/lib/GroupContext";
 import {DataRowStatus} from "@/lib/DataRowParser";
-import {TriangleAlertIcon} from "lucide-react";
-import {cleanString, fuzzyCoerce, stringToFuzzyRegex} from "@/lib/utils";
+import {CogIcon, TriangleAlertIcon} from "lucide-react";
+import {useImmer} from "use-immer";
+import {clsx} from "clsx";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
+import UploadRow from "@/components/UploadRow";
+import {Button} from "@/components/ui/button";
 
 export default function UploadStep({
                                        openByDefault,
                                    }: {
     openByDefault?: boolean;
 }) {
-    const { rows, skipRows, setSkipRows} = useInputData();
-    const { articles} = useGroup();
-    const articleTitles = useMemo(() => articles?.map(article => article.title) || [], [articles]);
-    const [done, setDone] = useState(false);
+    const { rows, skipRows} = useInputData();
+    const [running, setRunning] = useState(false);
+    const [status, setStatus] = useImmer<Record<DataRowStatus["id"], "skipped"|"in progress"|"complete"|"error">>({});
 
-    useEffect(() => {
-        setDone(false);
-    }, [rows]);
+    useEffect(() => setRunning(false), [rows]);
 
-    const exactMatches = useMemo(() => {
-        return rows.filter(r => r.title && articleTitles.includes(r.title));
-    }, [rows, articleTitles]);
-
-    const cleanArticleTitles = useMemo(() => {
-        return articleTitles.map(cleanString);
-    }, [articleTitles]);
-
-    const articleTitleRegex = useMemo(() => {
-        return cleanArticleTitles.map(stringToFuzzyRegex);
-    }, [cleanArticleTitles]);
-
-    const fuzzyWarnings = useMemo(() => {
-        return rows.map(r => {
-            if (!r.title)
-                return null;
-            const fuzzy = fuzzyCoerce(r.title, articleTitles, true, articleTitleRegex);
-            const matchIndex = cleanArticleTitles.findIndex(title => title === fuzzy);
-            if (matchIndex === -1)
-                return null;
-            return {
-                excelRowNumber: r.excelRowNumber,
-                title: r.title,
-                articleTitle: fuzzy,
-            };
-        })
-            .filter(Boolean)
-            .filter(match => !exactMatches.some(r => r.excelRowNumber === match!.excelRowNumber));
-    }, [rows, articleTitles, exactMatches]);
-
-    const toggleAll = (check: boolean) =>
-        setSkipRows(check ? exactMatches.map(r => r.id) : []);
-
-    const toggleOne = (index: DataRowStatus["id"]) =>
-        setSkipRows((sel) =>
-            sel.includes(index) ? sel.filter(i => i !== index) : [...sel, index]
-        );
+    const overallStatus = useMemo(() => {
+        const statuses = Object.values(status);
+        if (statuses.length === 0) return 'idle';
+        let complete = true;
+        for (const s of statuses) {
+            if (s === 'error') return 'error';
+            if (s !== 'complete') complete = false;
+        }
+        return complete ? 'complete' : 'in progress';
+    }, [status]);
 
     let summary: Parameters<typeof StepPanel>[0]["title"] = <></>;
-    let status: Parameters<typeof StepPanel>[0]["status"] = 'default';
+    let stepStatus: Parameters<typeof StepPanel>[0]["status"] = 'default';
     let iconOverride: Parameters<typeof StepPanel>[0]["iconOverride"]  = undefined;
-    if (done) {
-        summary = `Keep ${exactMatches.length - skipRows.length}, overwrite ${skipRows.length}`;
-        status = 'complete';
-    } else if (!rows.length) {
-        summary = 'Resolve duplicates';
-    } else if (exactMatches.length) {
-        summary = `Resolve duplicates: ${exactMatches.length} found`;
-        status = 'error';
+
+    if (overallStatus === 'error') {
+        summary = <span className="text-red-600">Error uploading to FigShare</span>;
+        stepStatus = 'error';
+        iconOverride = <TriangleAlertIcon className="text-red-600" />;
+    } else if (overallStatus === 'in progress') {
+        summary = 'Uploading...';
+        stepStatus = 'default';
+        iconOverride = <CogIcon className="animate-spin text-blue-600 w-5 h-5" />;
+    } else if (overallStatus === 'complete') {
+        summary = 'Upload complete!';
+        stepStatus = 'complete';
     } else {
-        summary = 'No duplicates found';
-        status = 'complete';
-    }
-    if (fuzzyWarnings.length) {
-        summary += ` (${fuzzyWarnings.length} warning${fuzzyWarnings.length > 1? 's' : ''})`;
-        iconOverride = <TriangleAlertIcon className="text-yellow-600 w-5 h-5" />;
+        summary = 'Upload to FigShare';
+        stepStatus = 'default';
     }
 
     return (
         <StepPanel
             title={summary}
-            status={status}
+            status={stepStatus}
             iconOverride={iconOverride}
             openByDefault={openByDefault}
         >
-            {exactMatches.length ? (
-                <>
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <Checkbox
-                                checked={skipRows.length === exactMatches.length}
-                                onCheckedChange={(checked) => toggleAll(checked === true)}/>
-                            <span>Select all</span>
-                        </div>
-                        {exactMatches.map(row => (
-                            <div key={row.id} className="flex items-center gap-2 ps-4">
-                                <Checkbox
-                                    checked={skipRows.includes(row.id)}
-                                    onCheckedChange={() => toggleOne(row.id)}/>
-                                <span>
-                              Overwrite <strong>{row.title}</strong>
-                          </span>
-                            </div>
-                        ))}
-                    </div>
-                    <Button onClick={() => {
-                        setDone(true);
-                        onSuccess?.();
-                    }} className="mt-4 cursor-pointer">Done</Button></>
-            ) : (
-                <p className="text-sm text-muted-foreground">✅ No duplicate titles found.</p>
-            )}
-
-            {fuzzyWarnings.length > 0 && (
-                <div className="mt-4 border-t pt-4">
-                    <p className="text-sm text-yellow-600 font-medium">⚠️ Close matches:</p>
-                    <ul className="text-sm text-muted-foreground pl-4 list-disc">
-                        {fuzzyWarnings.map(match => (
-                            <li key={match!.excelRowNumber}>
-                                Row {match!.excelRowNumber} &#34;<strong>{match!.title}</strong>&#34;
-                                is similar to &#34;<strong>{match!.articleTitle}</strong>&#34;
-                            </li>
-                        ))}
-                    </ul>
+            <div className="space-y-4">
+                <div className="overflow-x-auto border rounded-md bg-white shadow-sm">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>#</TableHead>
+                                <TableHead>Title</TableHead>
+                                <TableHead>Upload status</TableHead>
+                                <TableHead>File upload status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {rows.map((r) => {
+                                return skipRows.includes(r.id)
+                                    ? <TableRow className="opacity-25 bg-grey-50">
+                                        <TableCell>{r.excelRowNumber}</TableCell>
+                                        <TableCell>{r.title}</TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell></TableCell>
+                                    </TableRow>
+                                    : <UploadRow
+                                        row={r}
+                                        onError={() => setStatus((draft) => {
+                                            draft[r.id] = 'error';
+                                            return draft;
+                                        })}
+                                        onSuccess={() => setStatus((draft) => {
+                                            draft[r.id] = 'complete';
+                                            return draft;
+                                        })}
+                                        runQueries={running}
+                                    />
+                            })}
+                        </TableBody>
+                    </Table>
                 </div>
-            )}
+                <div className="flex items-center space-x-2">
+                    <Button
+                        onClick={() => setRunning(true)}
+                        disabled={running}
+                        className="w-[50%] cursor-pointer"
+                    >
+                        Upload!
+                    </Button>
+                    <Button
+                        onClick={() => setRunning(false)}
+                        variant="outline"
+                        disabled={!running || overallStatus === 'complete'}
+                        className="cursor-pointer"
+                    >
+                        Cancel
+                    </Button>
+                </div>
+            </div>
         </StepPanel>
     );
 }

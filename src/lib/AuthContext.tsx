@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { loginWithFigShare } from '@/lib/auth';
+import {createContext, useCallback, useContext, useEffect, useState} from 'react';
+import {loginWithFigShare} from '@/lib/auth';
 import {FigshareCategory, FigshareLicense, FigshareUser} from "@/lib/types/figshare-api";
-import {fetchWithConditionalCache} from "@/lib/fetchWithConditionalCache";
+import {fetchAllPagesWithConditionalCache, fetchWithConditionalCache} from "@/lib/fetchWithConditionalCache";
 
 type AuthState = {
   token: string | null;
@@ -17,6 +17,9 @@ type AuthState = {
   institutionCategories: FigshareCategory[] | null;
   // impersonationTarget if set, otherwise user
   targetUser: FigshareUser | null;
+  // Run a fetch query on FigShare with token, impersonation, and caching
+  fsFetch: <T = unknown>(url: string, options?: RequestInit) => Promise<T>;
+  fsFetchPaginated: <T = unknown>(url: string, onPage: (data: T[]) => void, options?: RequestInit, pageSize?: number) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -28,6 +31,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [institutionLicenses, setInstitutionLicenses] = useState<FigshareLicense[] | null>(null);
   const [institutionCategories, setInstitutionCategories] = useState<FigshareCategory[] | null>(null);
 
+  const prepQuery = useCallback((url: string, options: RequestInit) => {
+    const headers = new Headers(options.headers);
+    if (token) headers.set('Authorization', `token ${token}`);
+    if (impersonationTarget) {
+      if (options.method && options.method.toUpperCase() === 'POST') {
+        options.body = JSON.stringify(
+            {
+              ...JSON.parse(options.body as string),
+              impersonate: impersonationTarget.id,
+            }
+        );
+      } else {
+        url += `?impersonate=${impersonationTarget.id}`;
+      }
+    }
+    return {url, options: {...options, headers}};
+  }, [token, impersonationTarget]);
+
+  const fsFetch = useCallback(async <T,>(url: string, options: RequestInit = {}): Promise<T> => {
+    const query = prepQuery(url, options);
+    return await fetchWithConditionalCache(query.url.toString(), query.options);
+  }, [prepQuery]);
+
+  const fsFetchPaginated = useCallback(async <T,>(url: string, onPage: (data: T[]) => void, options: RequestInit = {}, pageSize = 100) => {
+    const query = prepQuery(url, options);
+    return await fetchAllPagesWithConditionalCache(query.url.toString(), query.options, onPage, pageSize);
+  }, [prepQuery]);
+
   const clear = () => {
     setToken(null);
     setUser(null);
@@ -37,14 +68,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const fetchInstitutionLicenses = async (token: string) => {
-    const licenses = await fetchWithConditionalCache<FigshareLicense[]>('https://api.figshare.com/v2/account/licenses',{
+    const licenses = await fsFetch<FigshareLicense[]>('https://api.figshare.com/v2/account/licenses',{
       headers: { Authorization: `token ${token}` }
     });
     setInstitutionLicenses(licenses);
   }
 
   const fetchInstitutionCategories = async (token: string) => {
-    const categories = await fetchWithConditionalCache<FigshareCategory[]>('https://api.figshare.com/v2/account/categories',{
+    const categories = await fsFetch<FigshareCategory[]>('https://api.figshare.com/v2/account/categories',{
       headers: { Authorization: `token ${token}` }
     });
     setInstitutionCategories(categories);
@@ -92,8 +123,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setImpersonationTarget,
             institutionCategories,
             institutionLicenses,
-            targetUser: impersonationTarget ?? user
-      }}
+            targetUser: impersonationTarget ?? user,
+            fsFetch,
+            fsFetchPaginated,
+          }}
       >
         {children}
       </AuthContext.Provider>

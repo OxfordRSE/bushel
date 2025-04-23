@@ -96,7 +96,7 @@ export class DataRowParser {
   constructor(
       public readonly input_data: unknown[],
       public readonly columnNameMapping: ColumnNameMapping,
-      private readonly id: DataRowId,
+      public readonly id: DataRowId,
       private readonly update: UpdateStatusCallback,
       public readonly fields: Field[],
       public readonly context: ParserContext

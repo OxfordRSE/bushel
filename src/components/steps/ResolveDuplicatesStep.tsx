@@ -68,7 +68,7 @@ export default function ResolveDuplicatesStep({
     let status: Parameters<typeof StepPanel>[0]["status"] = 'default';
     let iconOverride: Parameters<typeof StepPanel>[0]["iconOverride"]  = undefined;
     if (done) {
-        summary = `Keep ${exactMatches.length - skipRows.length}, overwrite ${skipRows.length}`;
+        summary = `Overwrite ${exactMatches.length - skipRows.length}, skip ${skipRows.length}`;
         status = 'complete';
     } else if (!rows.length) {
         summary = 'Resolve duplicates';
@@ -106,7 +106,7 @@ export default function ResolveDuplicatesStep({
                                     checked={skipRows.includes(row.id)}
                                     onCheckedChange={() => toggleOne(row.id)}/>
                                 <span>
-                              Overwrite <strong>{row.title}</strong>
+                              Keep FigShare version of <strong>{row.title}</strong>
                           </span>
                             </div>
                         ))}
@@ -116,12 +116,12 @@ export default function ResolveDuplicatesStep({
                         onSuccess?.();
                     }} className="mt-4 cursor-pointer">Done</Button></>
             ) : (
-                <p className="text-sm text-muted-foreground">✅ No duplicate titles found.</p>
+                <p className="text-sm text-muted-foreground">No duplicate titles found.</p>
             )}
 
             {fuzzyWarnings.length > 0 && (
                 <div className="mt-4 border-t pt-4">
-                    <p className="text-sm text-yellow-600 font-medium">⚠️ Close matches:</p>
+                    <p className="text-sm text-yellow-600 font-medium">Close matches:</p>
                     <ul className="text-sm text-muted-foreground pl-4 list-disc">
                         {fuzzyWarnings.map(match => (
                             <li key={match!.excelRowNumber}>

@@ -251,76 +251,76 @@ export const articles: FigshareArticle[] = [
 ];
 
 const licenses: FigshareLicense[] = [
-    {
-        "value": 1,
-        "name": "CC BY 4.0",
-        "url": "https://creativecommons.org/licenses/by/4.0/"
-    },
-    {
-        "value": 43,
-        "name": "In Copyright",
-        "url": "http://rightsstatements.org/vocab/InC/1.0/"
-    },
-    {
-        "value": 12,
-        "name": "CC BY-NC-ND 4.0",
-        "url": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
-    },
-    {
-        "value": 11,
-        "name": "CC BY-NC-SA 4.0",
-        "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
-    },
-    {
-        "value": 10,
-        "name": "CC BY-NC 4.0",
-        "url": "https://creativecommons.org/licenses/by-nc/4.0/"
-    },
-    {
-        "value": 9,
-        "name": "CC BY-ND 4.0",
-        "url": "https://creativecommons.org/licenses/by-nd/4.0/"
-    },
-    {
-        "value": 8,
-        "name": "CC BY-SA 4.0",
-        "url": "https://creativecommons.org/licenses/by-sa/4.0/"
-    },
-    {
-        "value": 7,
-        "name": "Apache 2.0",
-        "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
-    },
-    {
-        "value": 6,
-        "name": "GPL 3.0+",
-        "url": "https://www.gnu.org/licenses/gpl-3.0.html"
-    },
-    {
-        "value": 5,
-        "name": "GPL 2.0+",
-        "url": "https://www.gnu.org/licenses/gpl-2.0.html"
-    },
-    {
-        "value": 4,
-        "name": "GPL",
-        "url": "https://www.gnu.org/copyleft/gpl.html"
-    },
-    {
-        "value": 3,
-        "name": "MIT",
-        "url": "https://opensource.org/licenses/MIT"
-    },
-    {
-        "value": 2,
-        "name": "CC0",
-        "url": "https://creativecommons.org/publicdomain/zero/1.0/"
-    },
-    {
-        "value": 163,
-        "name": "JJC copyright and permissions",
-        "url": "https://jamesjoycecorrespondence.org/FM_04.xml?tab=0"
-    }
+  {
+    "value": 1,
+    "name": "CC BY 4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  {
+    "value": 43,
+    "name": "In Copyright",
+    "url": "http://rightsstatements.org/vocab/InC/1.0/"
+  },
+  {
+    "value": 12,
+    "name": "CC BY-NC-ND 4.0",
+    "url": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+  },
+  {
+    "value": 11,
+    "name": "CC BY-NC-SA 4.0",
+    "url": "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+  },
+  {
+    "value": 10,
+    "name": "CC BY-NC 4.0",
+    "url": "https://creativecommons.org/licenses/by-nc/4.0/"
+  },
+  {
+    "value": 9,
+    "name": "CC BY-ND 4.0",
+    "url": "https://creativecommons.org/licenses/by-nd/4.0/"
+  },
+  {
+    "value": 8,
+    "name": "CC BY-SA 4.0",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  {
+    "value": 7,
+    "name": "Apache 2.0",
+    "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+  },
+  {
+    "value": 6,
+    "name": "GPL 3.0+",
+    "url": "https://www.gnu.org/licenses/gpl-3.0.html"
+  },
+  {
+    "value": 5,
+    "name": "GPL 2.0+",
+    "url": "https://www.gnu.org/licenses/gpl-2.0.html"
+  },
+  {
+    "value": 4,
+    "name": "GPL",
+    "url": "https://www.gnu.org/copyleft/gpl.html"
+  },
+  {
+    "value": 3,
+    "name": "MIT",
+    "url": "https://opensource.org/licenses/MIT"
+  },
+  {
+    "value": 2,
+    "name": "CC0",
+    "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+    "value": 163,
+    "name": "JJC copyright and permissions",
+    "url": "https://jamesjoycecorrespondence.org/FM_04.xml?tab=0"
+  }
 ]
 
 const categories: FigshareCategory[] = [
@@ -534,6 +534,25 @@ export const figshareHandlers = [
     const limit = Number(url.searchParams.get('limit')) || 10;
     const paginatedArticles = articles.slice(offset, offset + limit);
     return HttpResponse.json(paginatedArticles)
+  }),
+
+  http.post('https://api.figshare.com/v2/account/articles', async ({request}) => {
+    const body = (await request.json()) as Partial<FigshareArticle>;
+    if (!body?.title) return HttpResponse.json({message: "Title is required"}, {status: 400})
+    const id = 900000 + Math.floor(Math.random() * 100000)
+    const now = new Date().toUTCString();
+    return HttpResponse.json({
+      id,
+      title: body.title,
+      description: body.description ?? '',
+      doi: `10.5678/${id}`,
+      url: `https://figshare.com/articles/${id}`,
+      created_date: now,
+      modified_date: now,
+      published_date: now,
+      status: 'draft',
+      group_id: body.group_id,
+    }, {status: 201});
   }),
 
   http.get('https://api.figshare.com/v2/account/licenses', () => {

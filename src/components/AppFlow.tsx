@@ -11,6 +11,7 @@ import InputDataStep from "@/components/steps/InputDataStep";
 import ResolveDuplicatesStep from "@/components/steps/ResolveDuplicatesStep";
 import SelectRootDirectoryStep from "@/components/steps/SelectRootDirectoryStep";
 import {useInputData} from "@/lib/InputDataContext";
+import UploadStep from "@/components/steps/UploadStep";
 
 const steps = [
     'Login via FigShare',
@@ -61,31 +62,11 @@ export default function AppFlow() {
             <GroupPicker openByDefault={activeStep === 2} onSelect={() => setActiveStep(3)} />
             <SelectRootDirectoryStep openByDefault={activeStep === 3} onSuccess={() => setActiveStep(4)} />
             <InputDataStep openByDefault={activeStep === 4} onSuccess={() => setActiveStep(5)} />
-            <ResolveDuplicatesStep openByDefault={activeStep === 5} onSuccess={() => setActiveStep(6)} />
-            {/*<div className="w-full">*/}
-            {/*    <label className="block mb-2 text-left font-medium">Issues found:</label>*/}
-            {/*    <ul className="text-sm text-gray-700 ps-0">*/}
-            {/*        <li>Entry #5: <kbd>title</kbd> field missing</li>*/}
-            {/*        <li>Entry #8: <kbd>date</kbd> invalid format</li>*/}
-            {/*    </ul>*/}
-            {/*    <p className="mt-2 text-sm text-gray-500">Please fix issues in the file and re-upload.</p>*/}
-            {/*</div>*/}
-            {/*<div className="text-left space-y-2">*/}
-            {/*    <p>⚠️ Some entries already exist in FigShare.</p>*/}
-            {/*    <ul className="list-disc pl-5 text-sm text-gray-700">*/}
-            {/*        <li>Entry #12: Title conflict — &#34;Mid-European Trade Routes&#34;</li>*/}
-            {/*        <li>Entry #19: Title conflict — &#34;Nascent &#39;Silk Road&#39; Trade&#34;</li>*/}
-            {/*    </ul>*/}
-            {/*    <p className="text-sm text-gray-500">You will choose whether to overwrite, skip, or merge later.</p>*/}
-            {/*</div>*/}
-            {/*<div className="text-left space-y-2">*/}
-            {/*    <p className="font-medium">Upload Summary:</p>*/}
-            {/*    <ul className="list-disc pl-5 text-sm text-gray-700">*/}
-            {/*        <li>✅ 23 records uploaded</li>*/}
-            {/*        <li>⚠️ 2 records skipped (conflicts)</li>*/}
-            {/*        <li>📝 Summary report saved locally</li>*/}
-            {/*    </ul>*/}
-            {/*</div>*/}
+            <ResolveDuplicatesStep openByDefault={activeStep === 5} onSuccess={() => {
+                markStepComplete(5)
+                setActiveStep(6)
+            }} />
+            <UploadStep openByDefault={activeStep === 6} />
         </div>
     );
 }

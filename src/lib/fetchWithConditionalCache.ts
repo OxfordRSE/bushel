@@ -1,5 +1,3 @@
-// lib/fetchWithConditionalCache.ts
-
 import {checkFigshareResponse, toFigshareAPIError} from "@/lib/utils";
 
 export type CacheEntry<T> = {
@@ -77,34 +75,23 @@ export async function fetchWithConditionalCache<T = unknown>(url: string, option
     * This function is useful for fetching large datasets from paginated APIs
     * while avoiding unnecessary network requests when the data has not changed.
 * */
-type PagedFetcherOpts<T> = {
-  baseUrl: string;
-  token: string;
-  pageSize?: number;
-  onPage: (data: T[]) => void;
-} & Partial<RequestInit>;
-
-export async function fetchAllPagesWithConditionalCache<T>({
-                                                             baseUrl,
-                                                             token,
-                                                             pageSize = 100,
-                                                             onPage,
-                                                             ...fetchOptions
-                                                           }: PagedFetcherOpts<T>): Promise<void> {
+export async function fetchAllPagesWithConditionalCache<T>(
+    url: string,
+    options: Partial<RequestInit>,
+    onPage: (data: T[]) => void,
+    pageSize: number = 100
+): Promise<void> {
   try {
     let offset = 0;
     let seenFinalPageHash: string | null = null;
+    const urlObj = new URL(url);
 
     while (true) {
-      const urlObj = new URL(baseUrl);
       urlObj.searchParams.set('limit', String(pageSize));
       urlObj.searchParams.set('offset', String(offset));
       const url = urlObj.toString();
 
-      const pageData = await fetchWithConditionalCache<T[]>(url, {
-        headers: { Authorization: `token ${token}` },
-        ...fetchOptions,
-      });
+      const pageData = await fetchWithConditionalCache<T[]>(url, options);
 
       // End if nothing returned
       if (!pageData?.length) break;

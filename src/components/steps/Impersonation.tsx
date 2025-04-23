@@ -7,7 +7,6 @@ import StepPanel from '@/components/steps/StepPanel';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { fetchAllPagesWithConditionalCache } from '@/lib/fetchWithConditionalCache';
 import {UserX} from "lucide-react";
 import {clsx} from "clsx";
 import {FigshareAPIError} from "@/lib/utils";
@@ -16,7 +15,7 @@ const EMAIL_REGEX = /^\w+@\w+\.\w+$/;
 const DISPLAY_PAGE_SIZE = 20;
 
 export default function ImpersonationStep({ openByDefault = false, onSelect }: { openByDefault?: boolean, onSelect?: () => void }) {
-  const { isLoggedIn, user, impersonationTarget, setImpersonationTarget, token } = useAuth();
+  const { isLoggedIn, user, impersonationTarget, setImpersonationTarget, token, fsFetchPaginated } = useAuth();
   const [searchMode, setSearchMode] = useState<'email' | 'name'>('email');
   const [search, setSearch] = useState('');
   const [displayPage, setDisplayPage] = useState(1);
@@ -36,13 +35,10 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
     setError(null);
     setAllUsers([]);
 
-    fetchAllPagesWithConditionalCache<FigshareUser>({
-      baseUrl: 'https://api.figshare.com/v2/account/institution/accounts',
-      token,
-      onPage: (newUsers) => {
-        setAllUsers(prev => [...prev, ...newUsers].filter(u => u.id !== user?.id));
-      }
-    }).catch((err: Error|unknown) => {
+    fsFetchPaginated<FigshareUser>(
+        'https://api.figshare.com/v2/account/institution/accounts',
+        (newUsers) => setAllUsers(prev => [...prev, ...newUsers].filter(u => u.id !== user?.id))
+    ).catch((err: Error|unknown) => {
       setError(
           err instanceof Error
               ? err instanceof FigshareAPIError

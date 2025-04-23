@@ -1,4 +1,4 @@
-import {createContext, useContext, useEffect, useMemo, useRef} from 'react';
+import {createContext, useContext, useEffect, useRef} from 'react';
 import {type Updater, useImmer} from 'use-immer';
 import {ColumnNameMapping, DataRowId, DataRowParser, DataRowStatus, ParserContext} from './DataRowParser';
 import ExcelJS from 'exceljs';
@@ -28,6 +28,7 @@ interface InputDataContextValue {
   working: boolean;
   skipRows: DataRowStatus["id"][]; // Rows to be skipped during upload
   setSkipRows: Updater<DataRowStatus["id"][]>;
+  getParser: (id: DataRowStatus["id"]) => DataRowParser;
 }
 
 type combineFieldsArgs = {
@@ -336,6 +337,13 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     newParsers.forEach(p => p.runAllChecks());
   }
 
+  const getParser = (id: DataRowStatus["id"]) => {
+    const parser = parsersRef.current.find(p => p.id === id);
+    if (!parser)
+      throw new Error(`No parser with id ${id}`);
+    return parser;
+  }
+
   return (
       <InputDataContext.Provider value={{
         rows,
@@ -349,7 +357,8 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         parserContext, setParserContext,
         check,
         skipRows,
-        setSkipRows
+        setSkipRows,
+        getParser
       }}>
         {children}
       </InputDataContext.Provider>
