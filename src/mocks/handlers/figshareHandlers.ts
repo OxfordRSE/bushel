@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw'
 import {
   FigshareUser,
   FigshareGroup,
-  FigshareCustomField, FigshareArticle, FigshareArticleSearch, FigshareLicense, FigshareCategory, FigshareItemType
+  FigshareCustomField, FigshareArticle, FigshareLicense, FigshareCategory, FigshareItemType
 } from '@/lib/types/figshare-api'
 
 function groupName(): string {
@@ -569,5 +569,46 @@ export const figshareHandlers = [
     return group_id === groups[0].id
         ? HttpResponse.json(itemTypes)
         : HttpResponse.json(itemTypes.slice(2));
+  }),
+
+  // Initiate file upload (POST /account/articles/:articleId/files)
+  http.post('https://api.figshare.com/v2/account/articles/:articleId/files', async () => {
+    const randomId = Math.floor(Math.random() * 1000000);
+    return HttpResponse.json({
+          location: `https://upload.figshare.com/upload/${randomId}`,
+          id: randomId,
+        },
+        { status: 201 }
+    );
+  }),
+
+  // Fetch parts info (GET /upload/:uploadToken)
+  http.get('https://upload.figshare.com/upload/:uploadToken', async (req) => {
+    return HttpResponse.json({
+      token: req.params.uploadToken,
+      name: 'mockfile.txt',
+      size: 123456,
+      md5: 'mockedmd5hash',
+      status: 'PENDING',
+      parts: Array.from({ length: 3 }).map((_, idx) => ({
+        partNo: idx + 1,
+        startOffset: idx * 4096,
+        endOffset: (idx + 1) * 4096 - 1,
+        status: 'PENDING',
+        locked: false,
+      })),
+    });
+  }),
+
+  // Upload file part (PUT /upload/:uploadToken/:partNo)
+  http.put('https://upload.figshare.com/upload/:uploadToken/:partNo', async () => {
+    const wait = new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
+    await wait;
+    return HttpResponse.json();
+  }),
+
+  // Complete file upload (POST /account/articles/:articleId/files/:fileId)
+  http.post('https://api.figshare.com/v2/account/articles/:articleId/files/:fileId', async () => {
+    return HttpResponse.json();
   }),
 ]

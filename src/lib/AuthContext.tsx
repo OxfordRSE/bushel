@@ -5,7 +5,7 @@ import {loginWithFigShare} from '@/lib/auth';
 import {FigshareCategory, FigshareLicense, FigshareUser} from "@/lib/types/figshare-api";
 import {fetchAllPagesWithConditionalCache, fetchWithConditionalCache} from "@/lib/fetchWithConditionalCache";
 
-type AuthState = {
+export type AuthState = {
   token: string | null;
   user: FigshareUser | null;
   impersonationTarget: FigshareUser | null;

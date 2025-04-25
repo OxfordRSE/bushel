@@ -4,6 +4,7 @@ import {Field} from "@/lib/InputDataContext";
 import {categoryCountCheck, CategoryCountCheckContext} from "@/lib/checks/check_category_count";
 import {keywordCountCheck, KeywordCountCheckContext} from "@/lib/checks/check_keyword_count";
 import {selectValuesCheck} from "@/lib/checks/check_select_values";
+import {AuthorDetails, FundingCreate, RelatedMaterial} from "@/lib/types/figshare-api";
 
 export type CheckStatus = 'pending' | 'in_progress' | 'success' | 'skipped' | 'failed';
 
@@ -71,7 +72,35 @@ export interface DataRowCheck<T extends DataRowCheckContext> {
   ): Promise<void>;
 }
 
-type ParsedCellContentType = string|string[]
+type AllowedCellJSON =
+    FundingCreate | RelatedMaterial | AuthorDetails
+
+type ParsedCellContentType = string
+    | string[]
+    | AllowedCellJSON[]
+    | Date
+
+type ExcelCell = string | number | boolean | Date | null | undefined | { text?: string; hyperlink?: string };
+
+function normalizeExcelCell(value: ExcelCell): string | number | null | Date {
+  if (value == null) return null;
+
+  if (typeof value === 'string' || typeof value === 'number' || value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value === 'object') {
+    // ExcelJS rich text or hyperlink objects
+    if ('text' in value && typeof value.text === 'string') {
+      return value.text.trim();
+    }
+    if ('hyperlink' in value && typeof value.hyperlink === 'string') {
+      return value.hyperlink.trim();
+    }
+  }
+
+  return null;
+}
 
 /* DataRowParser is a class that parses a row of data from an Excel file
 * and runs a series of checks on it. It is used to validate the data
@@ -136,6 +165,7 @@ export class DataRowParser {
       })
     } else {
       this.maybeUpdate({
+        status: 'error',
         errors: [
           ...Object.values(this.checks)
               .map((results) => results.reduce(
@@ -175,9 +205,24 @@ export class DataRowParser {
               if (this.input_data[i + 1] === undefined) {
                 return [header, null];
               }
-              const input = String(this.input_data[i + 1]).trim();  // ExcelJS uses 1-indexed column numbers
+              const input = String(normalizeExcelCell(this.input_data[i + 1] as ExcelCell)).trim();  // ExcelJS uses 1-indexed column numbers
               let value: ParsedCellContentType = input;
-              if (field.internal_settings.is_array) {
+              if (field.field_type === "JSON") {
+                try {value = JSON.parse(value)} catch (e) {
+                  throw new DataError(`Cannot parse JSON: ${value} [${e}]`, 'InvalidInputData')
+                }
+                if (!field.internal_settings.schema) {
+                  throw new DataError(`Field ${header} is JSON but no schema is defined`, 'InvalidInputData');
+                }
+                if (field.internal_settings.is_array) {
+                  if (!Array.isArray(value)) {
+                    throw new DataError(`Input is not an array: ${input}`, 'InvalidInputData');
+                  }
+                  value = value.map((v: unknown) => field.internal_settings.schema!.parse(v));
+                } else {
+                  value = field.internal_settings.schema.parse(value);
+                }
+              } else if (field.internal_settings.is_array) {
                 value = input.split(/;\s*/).map(v => v.trim()).filter(v => v.length > 0);
               }
               return [header, value];
@@ -203,24 +248,54 @@ export class DataRowParser {
   }
 
   async runAllChecks(): Promise<void> {
+    const checks = [
+        fileRefCheck,
+        dateFormatCheck,
+        categoryCountCheck,
+        keywordCountCheck,
+        selectValuesCheck,
+    ]
+
     const debug = (...args: unknown[]) => {
       if (process.env.NODE_ENV === 'development') console.debug(this.id, ...args, this.checks);
     }
     debug('Read data')
-    await this.runCheck({
-      name: 'Read data',
-      run: async (parser) => await parser.expand_row_data(),
-    });
-    debug(fileRefCheck.name)
-    await this.runCheck(fileRefCheck);
-    debug(categoryCountCheck.name)
-    await this.runCheck(categoryCountCheck);
-    debug(keywordCountCheck.name)
-    await this.runCheck(keywordCountCheck);
-    debug(selectValuesCheck.name)
-    await this.runCheck(selectValuesCheck);
-    debug(dateFormatCheck.name)
-    await this.runCheck(dateFormatCheck);
+    try {
+      await this.runCheck({
+        name: 'Read data',
+        run: async (parser) => await parser.expand_row_data(),
+      });
+    } catch (e) {
+      const error = e instanceof DataError ? e : new DataError(
+          e instanceof Error? `Failed to read row data: ${e.message}` : String(e), 'InvalidInputData'
+      );
+      this.report("Read data")({
+        status: 'failed',
+        error,
+      });
+      for (const check of checks) {
+        this.report(check.name)({
+          status: 'skipped',
+          warning: 'Skipping check due to error in row data',
+        });
+      }
+      return;
+    }
+
+    for (const check of checks) {
+      debug(check.name)
+      try {
+        await this.runCheck(check);
+      } catch (e) {
+        const error = e instanceof DataError ? e : new DataError(
+            e instanceof Error? `Failed to run check: ${e.message}` : String(e), 'CheckError'
+        );
+        this.report(check.name)({
+          status: 'failed',
+          error,
+        });
+      }
+    }
 
     const hasErrors = Object.values(this.checks).some(results => results.some(c => c.status === 'failed'));
     this.maybeUpdate({status: hasErrors ? 'error' : 'valid'});

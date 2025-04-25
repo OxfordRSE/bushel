@@ -1,121 +1,174 @@
 'use client';
 
-import {useEffect, useMemo, useState} from 'react';
+import { useMemo } from 'react';
 import StepPanel from '@/components/steps/StepPanel';
+import { useAuth } from '@/lib/AuthContext';
+import { useUploadData } from '@/lib/UploadDataContext';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {CogIcon, Package, Ban, TriangleAlertIcon} from 'lucide-react';
 import {useInputData} from "@/lib/InputDataContext";
-import {DataRowStatus} from "@/lib/DataRowParser";
-import {CogIcon, TriangleAlertIcon} from "lucide-react";
-import {useImmer} from "use-immer";
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
-import UploadRow from "@/components/UploadRow";
-import {Button} from "@/components/ui/button";
-import {useAuth} from "@/lib/AuthContext";
 
-export default function UploadStep({
-                                       openByDefault,
-                                   }: {
-    openByDefault?: boolean;
-}) {
-    const {impersonationTarget} = useAuth();
-    const { rows, skipRows} = useInputData();
-    const [running, setRunning] = useState(false);
-    const [status, setStatus] = useImmer<Record<DataRowStatus["id"], "skipped"|"in progress"|"complete"|"error">>({});
+export default function UploadStep({ openByDefault }: { openByDefault?: boolean }) {
+  const { impersonationTarget } = useAuth();
+  const {rows: parsedRows} = useInputData();
+  const {
+    rows,
+    uploadAll,
+    cancelAll,
+    cancelRow,
+    getSummaryCSV,
+    skipRows,
+  } = useUploadData();
 
-    useEffect(() => setRunning(false), [rows]);
+  const all_rows_valid = useMemo(() => {
+    return parsedRows.every(row => row.status === "valid");
+  }, [parsedRows]);
 
-    const overallStatus = useMemo(() => {
-        const statuses = Object.values(status);
-        if (statuses.length === 0) return 'idle';
-        let complete = true;
-        for (const s of statuses) {
-            if (s === 'error') return 'error';
-            if (s !== 'complete') complete = false;
-        }
-        return complete ? 'complete' : 'in progress';
-    }, [status]);
+  const overallStatus = useMemo(() => {
+    if (!rows.length) return 'idle';
+    if (rows.some(r => r.status === 'error')) return 'error';
+    if (rows.every(r => r.status === 'completed' || r.status === 'skipped')) return 'complete';
+    if (rows.some(r => r.status === 'uploading')) return 'in progress';
+    return 'pending';
+  }, [rows]);
 
-    let summary: Parameters<typeof StepPanel>[0]["title"] = <></>;
-    let stepStatus: Parameters<typeof StepPanel>[0]["status"] = 'default';
-    let iconOverride: Parameters<typeof StepPanel>[0]["iconOverride"]  = undefined;
+  const summary = {
+    'error': { title: 'Error uploading to FigShare', status: 'error' as Parameters<typeof StepPanel>[0]["status"], icon: <TriangleAlertIcon className="text-red-600" /> },
+    'in progress': { title: 'Uploading...', status: 'default' as Parameters<typeof StepPanel>[0]["status"], icon: <CogIcon className="animate-spin text-blue-600 w-5 h-5" /> },
+    'complete': { title: 'Upload complete!', status: 'complete' as Parameters<typeof StepPanel>[0]["status"] },
+    'pending': { title: 'Upload to FigShare', status: 'default' as Parameters<typeof StepPanel>[0]["status"] },
+    'idle': { title: 'Upload to FigShare', status: 'default' as Parameters<typeof StepPanel>[0]["status"] },
+  }[overallStatus];
 
-    if (overallStatus === 'error') {
-        summary = <span className="text-red-600">Error uploading to FigShare</span>;
-        stepStatus = 'error';
-        iconOverride = <TriangleAlertIcon className="text-red-600" />;
-    } else if (overallStatus === 'in progress') {
-        summary = 'Uploading...';
-        stepStatus = 'default';
-        iconOverride = <CogIcon className="animate-spin text-blue-600 w-5 h-5" />;
-    } else if (overallStatus === 'complete') {
-        summary = 'Upload complete!';
-        stepStatus = 'complete';
-    } else {
-        summary = 'Upload to FigShare';
-        stepStatus = 'default';
-    }
+  const downloadSummary = () => {
+    const csv = getSummaryCSV();
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'upload-summary.csv';
+    link.click();
+  };
 
-    return (
-        <StepPanel
-            title={summary}
-            status={stepStatus}
-            iconOverride={iconOverride}
-            openByDefault={openByDefault}
-        >
-            <div className="space-y-4">
-                <p>Ready to upload <strong>{rows.length} Articles</strong>. Please make sure {impersonationTarget?.first_name? `${impersonationTarget.first_name} has` : 'you have'} enough headroom to create these articles.</p>
-                <div className="overflow-x-auto border rounded-md bg-white shadow-sm">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>#</TableHead>
-                                <TableHead>Title</TableHead>
-                                <TableHead>Upload status</TableHead>
-                                <TableHead>File upload status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {rows.map((r) => {
-                                return skipRows.includes(r.id)
-                                    ? <TableRow className="opacity-25 bg-grey-50">
-                                        <TableCell>{r.excelRowNumber}</TableCell>
-                                        <TableCell>{r.title}</TableCell>
-                                        <TableCell></TableCell>
-                                        <TableCell></TableCell>
-                                    </TableRow>
-                                    : <UploadRow
-                                        row={r}
-                                        onError={() => setStatus((draft) => {
-                                            draft[r.id] = 'error';
-                                            return draft;
-                                        })}
-                                        onSuccess={() => setStatus((draft) => {
-                                            draft[r.id] = 'complete';
-                                            return draft;
-                                        })}
-                                        runQueries={running}
-                                    />
-                            })}
-                        </TableBody>
-                    </Table>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Button
-                        onClick={() => setRunning(true)}
-                        disabled={running}
-                        className="w-[50%] cursor-pointer"
-                    >
-                        Upload!
-                    </Button>
-                    <Button
-                        onClick={() => setRunning(false)}
-                        variant="outline"
-                        disabled={!running || overallStatus === 'complete'}
-                        className="cursor-pointer"
-                    >
-                        Cancel
-                    </Button>
-                </div>
-            </div>
-        </StepPanel>
-    );
+  if (!all_rows_valid) {
+    return <StepPanel
+        title="Upload to FigShare"
+        iconOverride={<Ban className="text-gray-400 w-5 h-5" />}
+        openByDefault={openByDefault}
+    >
+      <p>All data must be successfully parsed before it can be uploaded to FigShare.</p>
+    </StepPanel>
+  }
+
+  return (
+      <StepPanel
+          title={summary.title}
+          status={summary.status}
+          iconOverride={summary.icon}
+          openByDefault={openByDefault}
+      >
+        <div className="space-y-4">
+          <p>
+            Ready to upload <strong>{rows.length}</strong> articles.
+            Please make sure {impersonationTarget?.first_name ?? 'you'} have enough headroom to create them.
+          </p>
+
+          <div className="overflow-x-auto border rounded-md bg-white shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Upload status</TableHead>
+                  <TableHead>File upload status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map(row =>
+                    skipRows.includes(row.id) ? (
+                        <TableRow key={row.id} className="opacity-25 bg-gray-50">
+                          <TableCell>{row.excelRowNumber}</TableCell>
+                          <TableCell colSpan={4}>Skipped</TableCell>
+                        </TableRow>
+                    ) : (<TableRow key={row.id}>
+                          <TableCell>{row.excelRowNumber}</TableCell>
+                          <TableCell>{row.title}</TableCell>
+                          <TableCell className="capitalize">{row.status}</TableCell>
+                          <TableCell>
+                            {
+                              row.fileProgress?.totalFiles
+                                  ? (<div className="flex gap-1 items-center">
+                                    {Array.from({ length: row.fileProgress.totalFiles }).map((_, i) => {
+                                      const fp = row.fileProgress!;
+                                      const isDone = i < fp.fileIndex;
+                                      const isActive = i === fp.fileIndex;
+
+                                      return <TooltipProvider key={i}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Package
+                                                key={i}
+                                                className={
+                                                  isDone
+                                                      ? 'text-green-600'
+                                                      : isActive
+                                                          ? 'text-blue-600 animate-pulse'
+                                                          : 'text-gray-300'
+                                                }
+                                                size={16}
+                                            />
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top">
+                                            {isActive && <>Uploading <strong>{fp.name}</strong><br />
+                                              (part {fp.partNumber + 1}/{fp.partCount})</>}
+                                            {!isActive && fp.name}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    })}
+                                  </div>)
+                                  : <></>
+                            }
+
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {(row.status === 'uploading' || row.status === 'created') && (
+                                <Button size="sm" variant="destructive" onClick={() => cancelRow(row.id)}>
+                                  Stop
+                                </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                    )
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Button onClick={uploadAll} className="w-[50%] cursor-pointer">
+              Upload!
+            </Button>
+            <Button
+                onClick={cancelAll}
+                variant="outline"
+                disabled={overallStatus !== 'in progress'}
+                className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+          </div>
+
+          <Button
+              className="w-full cursor-pointer"
+              disabled={overallStatus !== 'complete' && overallStatus !== 'error'}
+              onClick={downloadSummary}
+          >
+            Download Summary
+          </Button>
+        </div>
+      </StepPanel>
+  );
 }

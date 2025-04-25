@@ -38,7 +38,7 @@ export default function StepPanel({
     <section className="border-l-4 pl-4 pr-2 py-4 bg-white rounded-md shadow-sm space-y-4">
       <button
         type="button"
-        className="w-full flex items-center justify-between text-left"
+        className="w-full flex items-center justify-between text-left cursor-pointer"
         onClick={() => setIsOpen(o => !o)}
       >
         <div className="flex items-center gap-2">

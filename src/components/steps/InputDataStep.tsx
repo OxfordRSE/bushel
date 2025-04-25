@@ -78,7 +78,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
     let iconOverride: Parameters<typeof StepPanel>[0]["iconOverride"]  = undefined;
 
     if (group && !ready) {
-        summary = <>Loading group details...</>;
+        summary = <>Upload Excel file: loading group details...</>;
         status = undefined;
         iconOverride = <CogIcon className="animate-spin text-blue-600 w-5 h-5" />;
     } else if (!rows.length) {

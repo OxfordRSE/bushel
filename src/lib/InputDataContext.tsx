@@ -1,4 +1,4 @@
-import {createContext, useContext, useEffect, useRef} from 'react';
+import {createContext, useCallback, useContext, useEffect, useMemo, useRef} from 'react';
 import {type Updater, useImmer} from 'use-immer';
 import {ColumnNameMapping, DataRowId, DataRowParser, DataRowStatus, ParserContext} from './DataRowParser';
 import ExcelJS from 'exceljs';
@@ -6,6 +6,8 @@ import {useGroup} from "@/lib/GroupContext";
 import {useAuth} from "@/lib/AuthContext";
 import {FigshareCategory, FigshareCustomField, FigshareItemType, FigshareLicense} from "@/lib/types/figshare-api";
 import {toFigshareColumnName} from "@/lib/utils";
+import {AuthorDetailsSchema, FundingCreateSchema, RelatedMaterialSchema} from "@/lib/types/schemas";
+import { type ZodTypeAny  } from 'zod';
 
 interface InputDataContextValue {
   rows: DataRowStatus[];
@@ -26,8 +28,7 @@ interface InputDataContextValue {
   loadErrors: string[];
   loadWarnings: string[];
   working: boolean;
-  skipRows: DataRowStatus["id"][]; // Rows to be skipped during upload
-  setSkipRows: Updater<DataRowStatus["id"][]>;
+  completed: boolean;
   getParser: (id: DataRowStatus["id"]) => DataRowParser;
 }
 
@@ -40,11 +41,13 @@ type combineFieldsArgs = {
 
 export type Field = Pick<FigshareCustomField, "name"|"is_mandatory"> & {
   id?: number;
-  field_type: FigshareCustomField["field_type"]|"file";
+  field_type: FigshareCustomField["field_type"]|"file"|"JSON";
   settings?: object;
   internal_settings: {
     is_array?: boolean;
     options?: string[];
+    // JSON fields can have a schema to enforce a specific structure
+    schema?: ZodTypeAny;
   }
 }
 
@@ -91,7 +94,7 @@ function combineFields({
     {
       name: "item_type",
       field_type: "text",
-      internal_settings: { options: itemTypeNames, is_array: true },
+      internal_settings: { options: itemTypeNames },
       is_mandatory: true
     },
     // Mandatory fields with set definitions
@@ -109,9 +112,9 @@ function combineFields({
     },
     {
       name: "authors",
-      field_type: "text",
-      internal_settings: {is_array: true},
-      is_mandatory: true
+      field_type: "JSON",
+      is_mandatory: true,
+      internal_settings: {is_array: true, schema: AuthorDetailsSchema},
     },
     // Optional fields with set definitions
     {
@@ -121,13 +124,18 @@ function combineFields({
     },
     {
       name: "funding",
-      field_type: "text",
-      internal_settings: {is_array: true},
+      field_type: "JSON",
+      internal_settings: {is_array: true, schema: FundingCreateSchema},
     },
     {
       name: "references",
       field_type: "text",
       internal_settings: {is_array: true},
+    },
+    {
+      name: "related_materials",
+      field_type: "JSON",
+      internal_settings: {is_array: true, schema: RelatedMaterialSchema}
     },
     ...convertedCustomFields
   ];
@@ -191,9 +199,9 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const [loadErrors, setLoadErrors] = useImmer<string[]>([]);
   const [loadWarnings, setLoadWarnings] = useImmer<string[]>([]);
   const [working, setWorking] = useImmer<boolean>(false);
+  const [completed, setCompleted] = useImmer<boolean>(false);
   const [file, _setFile] = useImmer<File | null>(null);
   const [ready, setReady] = useImmer<boolean>(false);
-  const [skipRows, setSkipRows] = useImmer<DataRowStatus["id"][]>([]);
   const {institutionCategories, institutionLicenses, targetUser} = useAuth();
   const {fields, groupItemTypes} = useGroup();
   const [parserContext, setParserContext] = useImmer<ParserContext>({
@@ -209,32 +217,37 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
       draft.userQuotaRemaining = (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0);
       return draft;
     })
-  }, [targetUser]);
+  }, [setParserContext, targetUser]);
 
-  const field_queries_loaded = institutionCategories && institutionLicenses && fields && groupItemTypes;
+  const field_queries_loaded = useMemo(
+      () => !!(institutionCategories && institutionLicenses && fields && groupItemTypes),
+      [institutionCategories, institutionLicenses, fields, groupItemTypes]
+  );
 
   useEffect(() => {
     if (field_queries_loaded) {
+      // The individual sets of fields must all be present or field_queries_loaded will be false. Not caught by ESLint because of the useMemo.
       setFieldList(combineFields({
-        categories: institutionCategories,
-        licenses: institutionLicenses,
-        itemTypes: groupItemTypes,
-        customFields: fields,
+        categories: institutionCategories!,
+        licenses: institutionLicenses!,
+        itemTypes: groupItemTypes!,
+        customFields: fields!,
       }));
       setReady(true);
     }
-  }, [fields, institutionCategories, institutionLicenses, groupItemTypes]);
+  }, [fields, institutionCategories, institutionLicenses, groupItemTypes, field_queries_loaded, setFieldList, setReady]);
 
-  const halt = () => {
+  const halt = useCallback(() => {
     parsersRef.current.forEach(p => p.terminate());
     parsersRef.current = [];
     sessionRef.current++;
     setWorking(false);
-  }
+  }, [setWorking]);
 
-  const reset = (clearParserContext = false) => {
+  const reset = useCallback((clearParserContext = false) => {
     halt();
-    setReady(!!field_queries_loaded);
+    setReady(field_queries_loaded);
+    setCompleted(false);
     if (clearParserContext)
       setParserContext({
         rootDir: undefined,
@@ -247,16 +260,16 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     setRows([]);
     setLoadErrors([]);
     setLoadWarnings([]);
-  };
+  }, [_setFile, field_queries_loaded, halt, setCompleted, setLoadErrors, setLoadWarnings, setParserContext, setReady, setRows, targetUser?.quota, targetUser?.used_quota]);
 
-  const setFile = async (file: File, clearCurrent = true) => {
+  const setFile = useCallback(async (file: File, clearCurrent = true) => {
     if (debug) console.debug('setFile', file);
     if (clearCurrent) reset();
     else if (file) throw new Error('File already set');
     return _setFile(file);
-  };
+  }, [_setFile, debug, reset]);
 
-  const check = async () => {
+  const check = useCallback(async () => {
     if (!file) {
       setLoadErrors(errors => [...errors, 'No file selected']);
       return;
@@ -321,6 +334,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         const allFinished = parsersRef.current.every(p => p.complete);
         if (allFinished) {
           setWorking(false);
+          setCompleted(true);
           shouldTerminate = true;
         }
         return shouldTerminate; // allow continuation
@@ -335,14 +349,14 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     setRows(newRows);
     parsersRef.current = newParsers;
     newParsers.forEach(p => p.runAllChecks());
-  }
+  }, [debug, fieldList, file, parserContext, ready, reset, setCompleted, setLoadErrors, setLoadWarnings, setRows, setWorking]);
 
-  const getParser = (id: DataRowStatus["id"]) => {
+  const getParser = useCallback((id: DataRowStatus["id"]) => {
     const parser = parsersRef.current.find(p => p.id === id);
     if (!parser)
       throw new Error(`No parser with id ${id}`);
     return parser;
-  }
+  }, []);
 
   return (
       <InputDataContext.Provider value={{
@@ -354,10 +368,9 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         loadErrors,
         loadWarnings,
         working,
+        completed,
         parserContext, setParserContext,
         check,
-        skipRows,
-        setSkipRows,
         getParser
       }}>
         {children}

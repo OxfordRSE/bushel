@@ -9,6 +9,7 @@ import {useGroup} from "@/lib/GroupContext";
 import {DataRowStatus} from "@/lib/DataRowParser";
 import {TriangleAlertIcon} from "lucide-react";
 import {cleanString, fuzzyCoerce, stringToFuzzyRegex} from "@/lib/utils";
+import {useUploadData} from "@/lib/UploadDataContext";
 
 export default function ResolveDuplicatesStep({
                                                   openByDefault,
@@ -17,7 +18,8 @@ export default function ResolveDuplicatesStep({
     openByDefault?: boolean;
     onSuccess?: () => void;
 }) {
-    const { rows, skipRows, setSkipRows} = useInputData();
+    const { rows} = useInputData();
+    const { skipRows, setSkipRows } = useUploadData();
     const { articles} = useGroup();
     const articleTitles = useMemo(() => articles?.map(article => article.title) || [], [articles]);
     const [done, setDone] = useState(false);

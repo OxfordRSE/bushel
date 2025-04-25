@@ -1,4 +1,6 @@
 // ChatGPT generated from FigShare's Swagger 2.0 API documentation
+import { z } from 'zod';
+import {AuthorDetailsSchema, FundingCreateSchema, RelatedMaterialSchema} from "@/lib/types/schemas";
 
 /** Represents a user in the FigShare system. */
 export interface FigshareUser {
@@ -77,6 +79,77 @@ export interface FigshareArticle {
   custom_fields?: FigshareCustomField[];
 }
 
+type TimelineUpdate = never
+
+export type CustomArticleFieldAdd = {
+  name: string,
+  value: string
+}
+
+export type AuthorDetails = z.infer<typeof AuthorDetailsSchema>;
+export type RelatedMaterial = z.infer<typeof RelatedMaterialSchema>;
+export type FundingCreate = z.infer<typeof FundingCreateSchema>;
+
+export interface FigshareArticleCreate {
+  /** Title of article */
+  title: string;
+  /** The article description. In a publisher case, usually this is the remote article description */
+  description?: string;
+  /** True if article has no files */
+  is_metadata_record?: boolean;
+  /** Article metadata reason */
+  metadata_reason?: string;
+  /** List of tags to be associated with the article. Keywords can be used instead */
+  tags?: string[];
+  /** List of tags to be associated with the article. Tags can be used instead */
+  keywords?: string[];
+  /** List of links to be associated with the article (e.g ["http://link1", "http://link2"]) */
+  references?: string[];
+  /** List of related materials; supersedes references and resource DOI/title. */
+  related_materials?: RelatedMaterial[];
+  /** List of category ids to be associated with the article (e.g [1, 23, 33]) */
+  categories?: number[];
+  /** List of category source ids to be associated with the article, supersedes the categories property */
+  categories_by_source_id?: string[];
+  /** List of authors to be associated with the article. The list can contain the following fields:
+   * id, name, first_name, last_name, email, orcid_id.
+   * If an id is supplied, it takes priority. For adding more authors use the specific authors endpoint.
+   */
+  authors?: AuthorDetails[];
+  /** List of key, value pairs to be associated with the article */
+  custom_fields?: Record<string, string>;
+  /** List of custom field values, supersedes custom_fields parameter */
+  custom_fields_list?: CustomArticleFieldAdd[];
+  /** One of: figure, online resource, preprint, book, conference contribution,
+   * media, dataset, poster, journal contribution, presentation, thesis, software
+   */
+  defined_type?: string;
+  /** Grant number or funding authority */
+  funding?: string;
+  /** Funding creation / update items */
+  funding_list?: FundingCreate[];
+  /** License id for this article */
+  license?: number;
+  /** Not applicable for regular users. For institutional users only via support */
+  doi?: string;
+  /** Not applicable for regular users. For institutional users only via support */
+  handle?: string;
+  /** Deprecated by related materials. Publisher article DOI */
+  resource_doi?: string;
+  /** Deprecated by related materials. Publisher article title */
+  resource_title?: string;
+  /** Various timeline dates */
+  timeline?: TimelineUpdate;
+  /** Reserved for institutions/publishers with access to assign specific groups */
+  group_id?: number;
+}
+
+export interface FigshareArticleCreateResponse {
+  entity_id: number;
+  location: string;
+  warnings: string[];
+}
+
 export interface FigshareLicense {
   value: number;
   name: string;
@@ -102,20 +175,20 @@ export interface FigshareItemType {
   url_name: string;
 }
 
-/** Represents a file associated with a FigShare item. */
-export interface FigshareFile {
-  /** Unique identifier for the file. */
-  id: number;
-  /** Name of the file. */
+export interface FigshareUploadStart {
+  token: string;
   name: string;
-  /** Size of the file in bytes. */
-  size: number;
-  /** URL to download the file. */
-  download_url: string;
-  /** MD5 checksum provided for the file. */
-  supplied_md5: string;
-  /** Computed MD5 checksum of the file. */
-  computed_md5: string;
-  /** MIME type of the file. */
-  mimetype: string;
+  size: number,
+  md5: string;  // as provided on upload creation
+  status: "PENDING"|"COMPLETED"|"ABORTED";
+  parts: FigshareFilePart[]
+}
+
+/** Represents a file associated with a FigShare item. */
+export interface FigshareFilePart {
+  partNo: number;
+  startOffset: number;
+  endOffset: number;
+  status: "PENDING"|"COMPLETE";
+  locked: boolean;
 }

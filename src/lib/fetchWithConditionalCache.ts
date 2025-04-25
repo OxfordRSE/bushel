@@ -25,23 +25,26 @@ function getCacheKey(url: string): string {
 * */
 export async function fetchWithConditionalCache<T = unknown>(url: string, options: RequestInit = {}): Promise<T> {
   try {
-    const cacheKey = getCacheKey(url);
-    const stored = localStorage.getItem(cacheKey);
+    const cache = !(["PUT", "POST"].includes(options.method?.toUpperCase() ?? "")) && !options.body;
+    const cacheKey: string = getCacheKey(url);
     let cached: CacheEntry<T> | null = null;
-
-    if (stored) {
-      try {
-        cached = JSON.parse(stored);
-      } catch {}
-    }
-
     const headers = new Headers(options.headers);
-    if (cached?.etag) headers.set('If-None-Match', cached!.etag);
-    if (cached?.lastModified) headers.set('If-Modified-Since', cached!.lastModified);
+
+    if (cache) {
+      const stored = localStorage.getItem(cacheKey);
+
+      if (stored) {
+        try {
+          cached = JSON.parse(stored);
+        } catch {}
+      }
+      if (cached?.etag) headers.set('If-None-Match', cached!.etag);
+      if (cached?.lastModified) headers.set('If-Modified-Since', cached!.lastModified);
+    }
 
     const res = await fetch(url, { ...options, headers });
 
-    if (res.status === 304 && cached?.data) {
+    if (cache && res.status === 304 && cached?.data) {
       return cached!.data;
     }
 
@@ -49,13 +52,25 @@ export async function fetchWithConditionalCache<T = unknown>(url: string, option
 
     const data: T = await res.json();
 
-    const newCache: CacheEntry<T> = {
-      etag: res.headers.get('ETag') || undefined,
-      lastModified: res.headers.get('Last-Modified') || undefined,
-      data,
-    };
+    if (cache) {
+      const newCache: CacheEntry<T> = {
+        etag: res.headers.get('ETag') || undefined,
+        lastModified: res.headers.get('Last-Modified') || undefined,
+        data,
+      };
 
-    localStorage.setItem(cacheKey, JSON.stringify(newCache));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(newCache));
+      } catch (e) {
+        // If the error is a LocalStorage error, clear the cache
+        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+          localStorage.clear();
+          localStorage.setItem(cacheKey, JSON.stringify(newCache));
+        } else {
+          throw e;
+        }
+      }
+    }
 
     return data;
 
