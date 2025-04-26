@@ -48,9 +48,12 @@ export async function fetchWithConditionalCache<T = unknown>(url: string, option
       return cached!.data;
     }
 
-    await checkFigshareResponse(res);
+    // If the response is 204 No Content, return an empty object
+    if (res.status === 204) {
+      return null as T;
+    }
 
-    const data: T = await res.json();
+    const data: T = await checkFigshareResponse(res);
 
     if (cache) {
       const newCache: CacheEntry<T> = {

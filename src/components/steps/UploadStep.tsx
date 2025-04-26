@@ -90,7 +90,10 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
                     skipRows.includes(row.id) ? (
                         <TableRow key={row.id} className="opacity-25 bg-gray-50">
                           <TableCell>{row.excelRowNumber}</TableCell>
+                          <TableCell>{row.title}</TableCell>
                           <TableCell colSpan={4}>Skipped</TableCell>
+                          <TableCell></TableCell>
+                          <TableCell></TableCell>
                         </TableRow>
                     ) : (<TableRow key={row.id}>
                           <TableCell>{row.excelRowNumber}</TableCell>
@@ -147,15 +150,15 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
             </Table>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Button onClick={uploadAll} className="w-[50%] cursor-pointer">
+          <div className="flex items-center space-x-2 justify-evenly">
+            <Button onClick={uploadAll} className="w-[75%] cursor-pointer" disabled={overallStatus === "in progress"}>
               Upload!
             </Button>
             <Button
                 onClick={cancelAll}
                 variant="outline"
                 disabled={overallStatus !== 'in progress'}
-                className="cursor-pointer"
+                className="w-[20%] cursor-pointer"
             >
               Cancel
             </Button>

@@ -35,10 +35,14 @@ export interface DataRowStatus {
 
 export class DataError extends Error {
   readonly kind: string;
-  constructor(message: string, kind = 'DataError') {
+  constructor(message: string, kind = 'DataError', from?: unknown) {
     super(message);
     this.name = this.constructor.name;
     this.kind = kind;
+    if (from instanceof Error) {
+      this.stack = from.stack;
+    }
+    if (from) console.error(from);
   }
 }
 
@@ -208,19 +212,19 @@ export class DataRowParser {
               const input = String(normalizeExcelCell(this.input_data[i + 1] as ExcelCell)).trim();  // ExcelJS uses 1-indexed column numbers
               let value: ParsedCellContentType = input;
               if (field.field_type === "JSON") {
-                try {value = JSON.parse(value)} catch (e) {
-                  throw new DataError(`Cannot parse JSON: ${value} [${e}]`, 'InvalidInputData')
+                let v: unknown;
+                try {v = JSON.parse(value)} catch (e) {
+                  throw new DataError(`Cannot parse JSON for ${header}: ${value} [${e}]`, 'InvalidInputData', e)
                 }
                 if (!field.internal_settings.schema) {
                   throw new DataError(`Field ${header} is JSON but no schema is defined`, 'InvalidInputData');
                 }
-                if (field.internal_settings.is_array) {
-                  if (!Array.isArray(value)) {
-                    throw new DataError(`Input is not an array: ${input}`, 'InvalidInputData');
-                  }
-                  value = value.map((v: unknown) => field.internal_settings.schema!.parse(v));
-                } else {
-                  value = field.internal_settings.schema.parse(value);
+                if (field.internal_settings.is_array && !Array.isArray(v))
+                  v = [v];
+                try {
+                  value = field.internal_settings.schema.parse(v);
+                } catch (e) {
+                  throw new DataError(`Invalid JSON for ${header}: ${(e as Error).message}`, 'InvalidInputData', e);
                 }
               } else if (field.internal_settings.is_array) {
                 value = input.split(/;\s*/).map(v => v.trim()).filter(v => v.length > 0);

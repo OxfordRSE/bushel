@@ -172,7 +172,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
           [id]: { ...prev[id], status: 'created', result }
         }));
 
-        if (upload_row.files.length) {
+        if (upload_row.files?.length) {
           await uploadFiles({
             files: upload_row.files,
             articleId: result.entity_id,
@@ -195,6 +195,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
           [id]: { ...prev[id], status: 'completed', completedAt: Date.now() }
         }));
       } catch (err: unknown) {
+        console.error(err);
         setUploadState(prev => ({
           ...prev,
           [id]: {
@@ -209,8 +210,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   }, [fsFetch, parserContext.rootDir, setUploadState, skipRows, uploadData]);
 
   const uploadAll = useCallback(async () => {
-    const ids = Object.keys(uploadData) as DataRowId[];
-    await Promise.all(ids.map(uploadRow));
+    await Promise.all(uploadData.map(r => r.id).map(uploadRow));
   }, [uploadData, uploadRow]);
 
   const cancelRow = useCallback((id: DataRowId) => {

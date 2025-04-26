@@ -52,18 +52,21 @@ export async function uploadFiles({
     const status: UploadFileStatus = {
       fileIndex,
       totalFiles: files.length,
+      figshareStatus: undefined,
+      md5: undefined,
+      name: files[fileIndex],
       partNumber: 0,
       partCount: 0,
     }
-    if(onProgress?.(status)) return;
+    if(onProgress?.({...status})) return;
     const fileHandle = await rootDir.getFileHandle(files[fileIndex]);
     const file = await fileHandle.getFile();
     status.md5 = await calculateFileMd5(file);
     status.name = file.name;
 
     // Step 1: Initiate upload
-    const uploadInit = await fsFetch<FigshareArticleCreateResponse>(
-        `/account/articles/${articleId}/files`,
+    const uploadInit = await fsFetch<FigshareUploadStart>(
+        `https://api.figshare.com/v2/account/articles/${articleId}/files`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -83,7 +86,7 @@ export async function uploadFiles({
     status.figshareStatus = partsInfo.status;
     status.partCount = partsInfo.parts?.length ?? 0;
     const parts = partsInfo.parts?.map((p: unknown) => p as FigshareFilePart) ?? [];
-    if(onProgress?.(status)) return;
+    if(onProgress?.({...status})) return;
 
     // Step 3: Upload parts
     for (let partIndex = 0; partIndex < parts.length; partIndex++) {
@@ -104,10 +107,10 @@ export async function uploadFiles({
 
     // Step 3: Complete upload
     await fsFetch(
-        `/account/articles/${articleId}/files/${uploadInit.entity_id}`,
+        `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadInit.id}`,
         { method: 'POST' }
     );
     status.figshareStatus = 'completed';
-    if(onProgress?.(status)) return;
+    if(onProgress?.({...status})) return;
   }
 }

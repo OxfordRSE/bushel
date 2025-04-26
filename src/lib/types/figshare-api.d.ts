@@ -175,6 +175,11 @@ export interface FigshareItemType {
   url_name: string;
 }
 
+export interface FigshareUploadRegister {
+  location: string;
+  id: number;
+}
+
 export interface FigshareUploadStart {
   token: string;
   name: string;

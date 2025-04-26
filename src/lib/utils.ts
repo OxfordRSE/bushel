@@ -3,17 +3,17 @@ import {twMerge} from "tailwind-merge"
 import {NextRequest} from "next/server";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+    return twMerge(clsx(inputs))
 }
 
 export function getOrigin(req: NextRequest): string {
-  const proto = req.headers.get('x-forwarded-proto') ?? 'https';
-  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? 'localhost:3000';
-  return `${proto}://${host}`;
+    const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+    const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? 'localhost:3000';
+    return `${proto}://${host}`;
 }
 
 export function absoluteUrl(req: NextRequest, path: string): string {
-  return `${getOrigin(req)}${path.startsWith('/') ? path : `/${path}`}`;
+    return `${getOrigin(req)}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
 export class FigshareAPIError extends Error {
@@ -57,22 +57,40 @@ export class FigshareAPIError extends Error {
     *   }
     * }
 * */
-export async function checkFigshareResponse(res: Response): Promise<Response> {
-  if (res.ok) return res;
+export async function checkFigshareResponse(res: Response) {
+    if (res.ok) {
+        // FigShare sometimes sends 200 OK with an empty body, so use text->JSON rather than just res.json()
+        const text = await res.text();
 
-  let err: FigshareAPIError;
-  try {
-    const body = await res.json();
-    if (body && typeof body === 'object') {
-        err = new FigshareAPIError(res.status, res.statusText, body.message, body.code);
-    } else {
-      err = new FigshareAPIError(res.status, res.statusText, String(body));
+        if (!text.trim()) {
+            return null;
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (err) {
+            throw new Error(`Invalid JSON in response: ${(err instanceof Error) ? err.message : String(err)}`);
+        }
     }
-  } catch {
-    err = new FigshareAPIError(res.status, res.statusText, await res.text());
-  }
 
-  throw err;
+    let err: FigshareAPIError;
+    try {
+        const body = await res.json();
+        if (body && typeof body === 'object') {
+            err = new FigshareAPIError(res.status, res.statusText, body.message, body.code);
+        } else {
+            err = new FigshareAPIError(res.status, res.statusText, String(body));
+        }
+    } catch {
+        try {
+            const text = await res.text();
+            err = new FigshareAPIError(res.status, res.statusText, text);
+        } catch {
+            err = new FigshareAPIError(res.status, res.statusText, 'Unknown error');
+        }
+    }
+
+    throw err;
 }
 
 export const toFigshareAPIError = (err: unknown): FigshareAPIError => {
@@ -119,7 +137,7 @@ export const toFigshareColumnName = (name: string, allowed_names: string[] = [])
     const clean = cleanString(name).replace(/^licence$/i, 'license')
     // Special cases:
     if (clean === '' || clean === '_') {
-            throw new Error(`${name} regularises to an blank value`);
+        throw new Error(`${name} regularises to an blank value`);
     }
     return fuzzyCoerce(clean, allowed_names, false)
 }

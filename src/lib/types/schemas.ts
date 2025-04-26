@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+const booleanIsh = z.union([
+  z.boolean(),
+  z.literal(0),
+  z.literal(1),
+]);
+
 export const AuthorDetailsSchema = z.object({
   id: z.number().optional(),
   name: z.string().optional(),
@@ -28,7 +34,7 @@ export const RelatedMaterialSchema = z.object({
     'ISBN', 'ISSN', 'ISTC', 'LISSN', 'LSID', 'PMID', 'PURL', 'UPC',
     'URL', 'URN', 'w3id',
   ]).optional(),
-  is_linkout: z.boolean().optional(),
+  is_linkout: booleanIsh.optional(),
   link: z.string().optional(),
 });
 
