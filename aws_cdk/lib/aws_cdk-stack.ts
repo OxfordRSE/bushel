@@ -17,6 +17,7 @@ import {
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
 
 import { aws_secretsmanager as secretsmanager } from 'aws-cdk-lib';
+import {getDomain} from "tldts";
 
 interface BushelStackProps extends StackProps {
   deploymentDomain: string;
@@ -36,8 +37,12 @@ export class BushelStack extends Stack {
   constructor(scope: Construct, id: string, props: BushelStackProps) {
     super(scope, id, props);
 
-    const { deploymentDomain, figshareClientId, figshareClientSecret, skipDomainLookup } = props;
-    const zoneDomain = deploymentDomain.split('.').slice(-2).join('.');
+    const { deploymentDomain, figshareClientId, figshareClientSecret } = props;
+    const zoneDomain = getDomain(deploymentDomain);
+
+    if (!zoneDomain) {
+      throw new Error(`Invalid deployment domain ${deploymentDomain}`);
+    }
 
     // --- VPC ---
     this.vpc = new ec2.Vpc(this, 'Vpc', {

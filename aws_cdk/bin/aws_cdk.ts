@@ -1,5 +1,6 @@
 import { App, Tags } from 'aws-cdk-lib';
 import { BushelStack } from '../lib/aws_cdk-stack';
+import {Tags} from "aws-cdk-lib";
 
 const app = new App();
 
