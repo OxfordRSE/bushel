@@ -1,6 +1,10 @@
-import { createMD5 } from 'hash-wasm';
-import {FigshareArticleCreateResponse, FigshareFilePart, FigshareUploadStart} from "@/lib/types/figshare-api";
-import {AuthState} from "@/lib/AuthContext";
+import { createMD5 } from "hash-wasm";
+import {
+  FigshareFilePart,
+  FigshareUploadRegister,
+  FigshareUploadStart,
+} from "@/lib/types/figshare-api";
+import { AuthState } from "@/lib/AuthContext";
 
 export type UploadFileStatus = {
   fileIndex: number;
@@ -16,9 +20,9 @@ type UploadFilesOptions = {
   files: string[];
   rootDir: FileSystemDirectoryHandle;
   articleId: number;
-  fsFetch: AuthState['fsFetch'];
+  fsFetch: AuthState["fsFetch"];
   // Return `true` to stop the upload process
-  onProgress?: (status: UploadFileStatus) => void|boolean;
+  onProgress?: (status: UploadFileStatus) => void | boolean;
 };
 
 async function calculateFileMd5(file: File): Promise<string> {
@@ -37,15 +41,18 @@ async function calculateFileMd5(file: File): Promise<string> {
 }
 
 export async function uploadFiles({
-                                    files,
-                                    rootDir,
-                                    articleId,
-                                    fsFetch,
-                                    onProgress,
-                                  }: UploadFilesOptions): Promise<void> {
+  files,
+  rootDir,
+  articleId,
+  fsFetch,
+  onProgress,
+}: UploadFilesOptions): Promise<void> {
   // Check actual API use support
-  if (typeof FileSystemHandle === 'undefined' || !('getFile' in FileSystemFileHandle.prototype)) {
-    throw new Error('This browser does not support the File System Access API');
+  if (
+    typeof FileSystemHandle === "undefined" ||
+    !("getFile" in FileSystemFileHandle.prototype)
+  ) {
+    throw new Error("This browser does not support the File System Access API");
   }
 
   for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
@@ -57,25 +64,25 @@ export async function uploadFiles({
       name: files[fileIndex],
       partNumber: 0,
       partCount: 0,
-    }
-    if(onProgress?.({...status})) return;
+    };
+    if (onProgress?.({ ...status })) return;
     const fileHandle = await rootDir.getFileHandle(files[fileIndex]);
     const file = await fileHandle.getFile();
     status.md5 = await calculateFileMd5(file);
     status.name = file.name;
 
     // Step 1: Initiate upload
-    const uploadInit = await fsFetch<FigshareUploadStart>(
-        `https://api.figshare.com/v2/account/articles/${articleId}/files`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: file.name,
-            size: file.size,
-            md5: status.md5,
-          }),
-        }
+    const uploadInit = await fsFetch<FigshareUploadRegister>(
+      `https://api.figshare.com/v2/account/articles/${articleId}/files`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          md5: status.md5,
+        }),
+      },
     );
 
     const uploadUrl = uploadInit.location;
@@ -85,8 +92,9 @@ export async function uploadFiles({
     const partsInfo = await fsFetch<FigshareUploadStart>(uploadUrl);
     status.figshareStatus = partsInfo.status;
     status.partCount = partsInfo.parts?.length ?? 0;
-    const parts = partsInfo.parts?.map((p: unknown) => p as FigshareFilePart) ?? [];
-    if(onProgress?.({...status})) return;
+    const parts =
+      partsInfo.parts?.map((p: unknown) => p as FigshareFilePart) ?? [];
+    if (onProgress?.({ ...status })) return;
 
     // Step 3: Upload parts
     for (let partIndex = 0; partIndex < parts.length; partIndex++) {
@@ -98,19 +106,19 @@ export async function uploadFiles({
       const blobPart = file.slice(part.startOffset, part.endOffset + 1);
 
       await fsFetch(partUrl, {
-        method: 'PUT',
+        method: "PUT",
         body: blobPart,
       });
 
-      if(onProgress?.({...status, partNumber: part.partNo})) return;
+      if (onProgress?.({ ...status, partNumber: part.partNo })) return;
     }
 
     // Step 3: Complete upload
     await fsFetch(
-        `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadInit.id}`,
-        { method: 'POST' }
+      `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadInit.id}`,
+      { method: "POST" },
     );
-    status.figshareStatus = 'completed';
-    if(onProgress?.({...status})) return;
+    status.figshareStatus = "completed";
+    if (onProgress?.({ ...status })) return;
   }
 }
