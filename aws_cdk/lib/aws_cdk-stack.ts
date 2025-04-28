@@ -1,121 +1,245 @@
 // aws_cdk.stack.ts
 import {
+  aws_secretsmanager as secretsmanager,
+  CfnOutput,
+  Duration,
+  RemovalPolicy,
   Stack,
   StackProps,
-  CfnOutput,
-  RemovalPolicy, SecretValue,
-} from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import {
-  aws_ecs as ecs,
-  aws_ecs_patterns as ecsPatterns,
-  aws_ec2 as ec2,
-  aws_route53 as route53,
-  aws_certificatemanager as acm,
-  aws_logs as logs,
-} from 'aws-cdk-lib';
-import { HostedZone } from 'aws-cdk-lib/aws-route53';
+} from "aws-cdk-lib";
+import { Construct } from "constructs";
 
-import { aws_secretsmanager as secretsmanager } from 'aws-cdk-lib';
-import {getDomain} from "tldts";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as ecs from "aws-cdk-lib/aws-ecs";
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import { HostedZone } from "aws-cdk-lib/aws-route53";
+import * as logs from "aws-cdk-lib/aws-logs";
+import * as targets from "aws-cdk-lib/aws-route53-targets";
+
+import { parse } from "tldts";
 
 interface BushelStackProps extends StackProps {
+  projectName: string;
   deploymentDomain: string;
-  figshareClientId: string;
-  figshareClientSecret: string;
   skipDomainLookup?: boolean;
 }
 
 export class BushelStack extends Stack {
-  albApp: ecsPatterns.ApplicationLoadBalancedFargateService;
+  production: boolean;
+  figshareSecret: secretsmanager.ISecret;
   vpc: ec2.Vpc;
-  cluster: ecs.Cluster;
   zone: route53.IHostedZone;
   cert: acm.ICertificate;
-  figshareSecret: secretsmanager.ISecret;
+  sgs: { alb: ec2.SecurityGroup; ecs: ec2.SecurityGroup };
+  cluster: ecs.Cluster;
+  taskDefinition: ecs.FargateTaskDefinition;
+  fargateService: ecs.FargateService;
+  loadBalancer: elbv2.ApplicationLoadBalancer;
+  listener: elbv2.ApplicationListener;
 
   constructor(scope: Construct, id: string, props: BushelStackProps) {
     super(scope, id, props);
+    this.production = process.env.NODE_ENV === "production";
 
-    const { deploymentDomain, figshareClientId, figshareClientSecret } = props;
-    const zoneDomain = getDomain(deploymentDomain);
+    const { projectName, deploymentDomain, skipDomainLookup } = props;
+    const { domain: zoneDomain, subdomain } = parse(deploymentDomain);
 
     if (!zoneDomain) {
       throw new Error(`Invalid deployment domain ${deploymentDomain}`);
     }
+    if (!subdomain) {
+      throw new Error(
+        `Deployment domain must have a subdomain ${deploymentDomain}`,
+      );
+    }
+
+    this.figshareSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      `${projectName}-FigshareOAuthSecret`,
+      `${projectName}/figshare/oauth`,
+    );
 
     // --- VPC ---
-    this.vpc = new ec2.Vpc(this, 'Vpc', {
+    this.vpc = new ec2.Vpc(this, `${projectName}-VPC`, {
       maxAzs: 2,
       natGateways: 0,
+      subnetConfiguration: [
+        {
+          name: "Public",
+          subnetType: ec2.SubnetType.PUBLIC,
+          cidrMask: 24,
+        },
+      ],
     });
 
     // --- Route53 ---
     this.zone = skipDomainLookup
-        ? HostedZone.fromHostedZoneAttributes(this, 'Zone', {
-          hostedZoneId: 'DUMMY',
+      ? HostedZone.fromHostedZoneAttributes(this, `${projectName}-Zone`, {
+          hostedZoneId: "DUMMY",
           zoneName: zoneDomain,
         })
-        : route53.HostedZone.fromLookup(this, 'Zone', {
+      : route53.HostedZone.fromLookup(this, `${projectName}-Zone`, {
           domainName: zoneDomain,
         });
 
     // --- ACM Certificate ---
-    this.cert = new acm.Certificate(this, 'Certificate', {
+    this.cert = new acm.Certificate(this, `${projectName}-Certificate`, {
       domainName: deploymentDomain,
       validation: acm.CertificateValidation.fromDns(this.zone),
     });
 
+    this.sgs = {
+      alb: new ec2.SecurityGroup(this, `${projectName}-ALB-SG`, {
+        vpc: this.vpc,
+        description: "Allow HTTP/HTTPS from anywhere",
+        allowAllOutbound: true,
+      }),
+      ecs: new ec2.SecurityGroup(this, `${projectName}-ECS-SG`, {
+        vpc: this.vpc,
+        description: "Allow ALB to communicate with ECS service",
+        allowAllOutbound: true,
+      }),
+    };
+    // ALB SG allows internet traffic
+    this.sgs.alb.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80));
+    this.sgs.alb.addIngressRule(ec2.Peer.anyIpv6(), ec2.Port.tcp(80));
+    this.sgs.alb.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443));
+    this.sgs.alb.addIngressRule(ec2.Peer.anyIpv6(), ec2.Port.tcp(443));
+    // ECS SG only allows ALB SG
+    this.sgs.ecs.addIngressRule(
+      this.sgs.alb,
+      ec2.Port.tcp(3000),
+      "Ingress from ALB",
+    );
 
-    // --- ECS Cluster ---
-    this.cluster = new ecs.Cluster(this, 'Cluster', { vpc: this.vpc });
-
-    this.figshareSecret = new secretsmanager.Secret(this, 'FigshareOAuthSecret', {
-      secretName: 'figshare/oauth',
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({
-          client_id: SecretValue.unsafePlainText(figshareClientId),
-          client_secret: SecretValue.unsafePlainText(figshareClientSecret),
-        }),
-        generateStringKey: 'placeholder',
-      },
-      removalPolicy: RemovalPolicy.RETAIN, // change to DESTROY if desired
+    this.cluster = new ecs.Cluster(this, `${projectName}-Cluster`, {
+      vpc: this.vpc,
     });
 
-
-    // --- Fargate App + ALB ---
-    this.albApp = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'App', {
-      cluster: this.cluster,
-      desiredCount: 1,
-      cpu: 512,
-      memoryLimitMiB: 1024,
-      taskImageOptions: {
-        image: ecs.ContainerImage.fromAsset('..'),
-        containerPort: 3000,
-        enableLogging: true,
-        logDriver: ecs.LogDriver.awsLogs({
-          streamPrefix: 'bushel',
-          logRetention: logs.RetentionDays.ONE_WEEK,
+    this.taskDefinition = new ecs.FargateTaskDefinition(
+      this,
+      `${projectName}-TaskDefinition`,
+      {
+        cpu: 512,
+        memoryLimitMiB: 1024,
+      },
+    );
+    this.taskDefinition.addContainer(`${projectName}-Container`, {
+      image: ecs.ContainerImage.fromAsset(".."),
+      portMappings: [{ containerPort: 3000 }],
+      secrets: {
+        FIGSHARE_CLIENT_ID: ecs.Secret.fromSecretsManager(
+          this.figshareSecret,
+          "client_id",
+        ),
+        FIGSHARE_CLIENT_SECRET: ecs.Secret.fromSecretsManager(
+          this.figshareSecret,
+          "client_secret",
+        ),
+      },
+      logging: ecs.LogDriver.awsLogs({
+        logGroup: new logs.LogGroup(this, `${projectName}-LogGroup`, {
+          logGroupName: `/${projectName}/ecs`,
+          retention: this.production
+            ? logs.RetentionDays.ONE_YEAR
+            : logs.RetentionDays.ONE_WEEK,
+          removalPolicy: this.production
+            ? RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE
+            : RemovalPolicy.DESTROY,
         }),
-        secrets: {
-          FIGSHARE_CLIENT_ID: ecs.Secret.fromSecretsManager(this.figshareSecret, 'client_id'),
-          FIGSHARE_CLIENT_SECRET: ecs.Secret.fromSecretsManager(this.figshareSecret, 'client_secret'),
+        streamPrefix: `ecs`,
+      }),
+    });
+
+    this.fargateService = new ecs.FargateService(
+      this,
+      `${projectName}-Service`,
+      {
+        cluster: this.cluster,
+        taskDefinition: this.taskDefinition,
+        assignPublicIp: true,
+        securityGroups: [this.sgs.ecs],
+        vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+        desiredCount: 1,
+        maxHealthyPercent: 200,
+        minHealthyPercent: 50,
+        enableECSManagedTags: true,
+        enableExecuteCommand: !this.production,
+        circuitBreaker: {
+          rollback: true,
+          enable: true,
         },
       },
-      domainName: deploymentDomain,
-      domainZone: this.zone,
-      certificate: this.cert,
-      redirectHTTP: true,
+    );
+
+    this.loadBalancer = new elbv2.ApplicationLoadBalancer(
+      this,
+      `${projectName}-ALB`,
+      {
+        vpc: this.vpc,
+        internetFacing: true,
+        securityGroup: this.sgs.alb,
+        vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      },
+    );
+
+    // HTTPS listener - forwards to ECS
+    this.listener = this.loadBalancer.addListener(
+      `${projectName}-HTTPSListener`,
+      {
+        port: 443,
+        protocol: elbv2.ApplicationProtocol.HTTPS,
+        certificates: [this.cert],
+        open: true,
+      },
+    );
+
+    this.listener.addTargets(`${projectName}-HTTPSTarget`, {
+      port: 3000,
+      protocol: elbv2.ApplicationProtocol.HTTP,
+      targets: [this.fargateService],
+      healthCheck: {
+        path: "/",
+        interval: Duration.seconds(30),
+      },
     });
 
-    this.albApp.service.autoScaleTaskCount({ maxCapacity: 4 }).scaleOnCpuUtilization('CpuScaling', {
-      targetUtilizationPercent: 60,
+    // HTTP listener - redirects to HTTPS
+    this.loadBalancer.addListener(`${projectName}-HTTPListener`, {
+      port: 80,
+      protocol: elbv2.ApplicationProtocol.HTTP,
+      defaultAction: elbv2.ListenerAction.redirect({
+        protocol: "HTTPS",
+        port: "443",
+        permanent: true,
+      }),
     });
 
+    new route53.ARecord(this, `${projectName}-Alias-A`, {
+      zone: this.zone,
+      recordName: subdomain,
+      target: route53.RecordTarget.fromAlias(
+        new targets.LoadBalancerTarget(this.loadBalancer),
+      ),
+    });
+
+    new route53.AaaaRecord(this, `${projectName}-Alias-AAAA`, {
+      zone: this.zone,
+      recordName: subdomain,
+      target: route53.RecordTarget.fromAlias(
+        new targets.LoadBalancerTarget(this.loadBalancer),
+      ),
+    });
 
     // --- Outputs ---
-    new CfnOutput(this, 'AppURL', {
+    new CfnOutput(this, `${projectName}-AppURL`, {
       value: `https://${deploymentDomain}`,
+    });
+
+    new CfnOutput(this, `${projectName}-ALB-DNS`, {
+      value: this.loadBalancer.loadBalancerDnsName,
     });
   }
 }
