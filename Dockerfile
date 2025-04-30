@@ -5,14 +5,17 @@ WORKDIR /app
 
 # 1. Copy only dependency files first
 COPY package.json package-lock.json ./
+COPY next.config.ts ./
+COPY tsconfig.json ./
+COPY postcss.config.mjs ./
+COPY tailwind.config.ts ./
 
 RUN npm ci
 
 # 2. Copy only necessary source files
 COPY public/ ./public
 COPY src/ ./src
-COPY next.config.ts ./
-COPY tsconfig.json ./
+
 
 # 3. Build the Next.js app
 RUN npm run build
