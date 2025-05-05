@@ -175,9 +175,25 @@ export interface FigshareItemType {
   url_name: string;
 }
 
-export interface FigshareUploadRegister {
+export interface FigshareCreateFile {
   location: string;
+}
+
+export interface FigshareInitiateUpload {
+  upload_token: string;
+  upload_url: string;
+  status: string;
+  preview_state: string;
+  viewer_type: string;
+  is_attached_to_public_version: boolean;
   id: number;
+  name: string;
+  size: number;
+  is_link_only: boolean;
+  download_url: string;
+  supplied_md5: string;
+  computed_md5: string;
+  mimetype?: string;
 }
 
 export interface FigshareUploadStart {

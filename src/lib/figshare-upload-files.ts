@@ -1,7 +1,7 @@
 import { createMD5 } from "hash-wasm";
 import {
-  FigshareFilePart,
-  FigshareUploadRegister,
+  FigshareFilePart, FigshareInitiateUpload,
+  FigshareCreateFile,
   FigshareUploadStart,
 } from "@/lib/types/figshare-api";
 import { AuthState } from "@/lib/AuthContext";
@@ -72,7 +72,7 @@ export async function uploadFiles({
     status.name = file.name;
 
     // Step 1: Initiate upload
-    const uploadInit = await fsFetch<FigshareUploadRegister>(
+    const uploadInit = await fsFetch<FigshareCreateFile>(
       `https://api.figshare.com/v2/account/articles/${articleId}/files`,
       {
         method: "POST",
@@ -88,8 +88,10 @@ export async function uploadFiles({
     const uploadUrl = uploadInit.location;
     console.log("uploadInit", uploadInit);
 
+    const uploadLocation = await fsFetch<FigshareInitiateUpload>(uploadUrl);
+
     // Step 2: Get parts list from FigShare
-    const partsInfo = await fsFetch<FigshareUploadStart>(uploadUrl);
+    const partsInfo = await fsFetch<FigshareUploadStart>(uploadLocation.upload_url);
     status.figshareStatus = partsInfo.status;
     status.partCount = partsInfo.parts?.length ?? 0;
     const parts =
