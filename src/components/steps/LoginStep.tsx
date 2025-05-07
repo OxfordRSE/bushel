@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import StepPanel from '@/components/steps/StepPanel';
+import {useState} from "react";
 
 export default function LoginStep({
   onSuccessAction,
@@ -12,6 +13,7 @@ export default function LoginStep({
   onSuccessAction: () => void;
   openByDefault?: boolean;
 }) {
+  const [loggingOut, setLoggingOut] = useState(false);
   const { isLoggedIn, user, login, logout } = useAuth();
 
   const handleLogin = async () => {
@@ -44,12 +46,20 @@ export default function LoginStep({
           <p className="text-sm text-gray-700">
             Logged in as {user?.first_name} {user?.last_name}
           </p>
-          <Button variant="destructive" onClick={logout}>
-            Logout
+          <Button
+              variant="destructive"
+              onClick={() => {
+            logout()
+            setLoggingOut(true);
+          }}
+              className="cursor-pointer"
+              disabled={loggingOut}
+          >
+            {loggingOut? "Cleaning up and logging out..." : "Logout"}
           </Button>
         </div>
       ) : (
-        <Button variant="outline" onClick={handleLogin}>
+        <Button variant="outline" onClick={handleLogin} className="cursor-pointer">
           Login with FigShare
         </Button>
       )}

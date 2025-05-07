@@ -105,10 +105,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(user);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     clear()
     // Optional: call /api/logout to clear cookie
-    fetch('/api/logout', { method: 'POST' }).catch(() => {});
+    await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+    window.location.href = '/';
   }, []);
 
   return (
