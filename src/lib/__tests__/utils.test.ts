@@ -19,4 +19,10 @@ describe("stringToFuzzyRegex", () => {
         expect(r).toBeInstanceOf(RegExp);
         expect(r.test(s)).toBe(true);
     });
+
+    it("should handle licenses", () => {
+        const s = "CC BY-NC-SA 4.0";
+        const r = stringToFuzzyRegex(s);
+        expect(r.test("CC-BY-NC-SA 4.0.")).toBe(true);
+    })
 });

@@ -108,9 +108,7 @@ export const cleanString = (value: string): string => {
 }
 
 export const stringToFuzzyRegex = (value: string): RegExp => {
-    const escape_patch = (input: string) => input.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-    // @ts-expect-error We are using a polyfill for escape
-    const escape = Object.prototype.hasOwnProperty.call(RegExp.prototype, 'escape') ? RegExp.prototype.escape : escape_patch;
+    const escape = (input: string) => input.replace(/[\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 
     const clean = escape(value).replace(/[_ -]/g, '[_ -]').replace(/\\?\.$/, '');
     return new RegExp(
