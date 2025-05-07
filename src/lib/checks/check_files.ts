@@ -36,7 +36,7 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
     }
 
     if (!rootDir) {
-      emit({ status: "failed", details: "No root directory provided" });
+      emit({ status: "failed", error: new DataError("No root directory provided", "NoRootDir") });
       return;
     }
 

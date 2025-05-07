@@ -8,7 +8,7 @@ export const selectValuesCheck: DataRowCheck<never> = {
         if (emit({ status: 'in_progress' })) return;
 
         if (!parser.data) {
-            emit({ status: 'failed', details: 'No data to check' });
+            emit({ status: 'skipped', details: 'No data to check' });
             return;
         }
 
