@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [institutionLicenses, setInstitutionLicenses] = useState<FigshareLicense[] | null>(null);
   const [institutionCategories, setInstitutionCategories] = useState<FigshareCategory[] | null>(null);
 
-  const prepQuery = useCallback((url: string, options: RequestInit) => {
+  const prepQuery = useCallback((url: string|URL, options: RequestInit) => {
     const headers = new Headers(options.headers);
     if (token) headers.set('Authorization', `token ${token}`);
     if (impersonationTarget) {
@@ -43,7 +43,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         );
       } else {
-        url += `?impersonate=${impersonationTarget.id}`;
+        url = new URL(url);
+        url.searchParams.set('impersonate', impersonationTarget.id.toString());
       }
     }
     return {url, options: {...options, headers}};
