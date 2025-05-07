@@ -334,8 +334,6 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                             <dd>The combined filesize of all paths in the Files column does not exceed the remaining quota
                                 for the uploading account.
                             </dd>
-                            <dt>Date format</dt>
-                            <dd>TODO: this is not yet implemented</dd>
                             <dt>Categories</dt>
                             <dd>All categories are valid and exist in FigShare. Each item has at
                                 least {parserContext.minCategoryCount} categories.
