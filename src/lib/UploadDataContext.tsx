@@ -120,7 +120,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
           title: data!.title as string,
           description: data!.description as string,
           keywords: data!.keywords as string[],
-          references: data!.references as string[],
+          references: data!.references as string[] ?? [],
           related_materials: data!.related_materials as RelatedMaterial[] ?? [],
           categories_by_source_id: categories,
           authors: data!.authors as AuthorDetails[] ?? [],
@@ -216,7 +216,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
             files: upload_row.files,
             articleId: result.entity_id,
             rootDir: parserContext.rootDir!,
-            fetch,
+            patchedFetch: fetch,
             onProgress: (status) => {
               setUploadState(prev => ({
                 ...prev,

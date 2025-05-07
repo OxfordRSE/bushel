@@ -61,12 +61,12 @@ export default function AppFlow() {
             <Impersonation openByDefault={activeStep === 1} onSelect={() => setActiveStep(2)} />
             <GroupPicker openByDefault={activeStep === 2} onSelect={() => setActiveStep(3)} />
             <SelectRootDirectoryStep openByDefault={activeStep === 3} onSuccess={() => setActiveStep(4)} />
-            <InputDataStep openByDefault={activeStep === 4} onSuccess={() => setActiveStep(5)} />
-            <ResolveDuplicatesStep openByDefault={activeStep === 5} onSuccess={() => {
+            <InputDataStep key={`InputDataStep-${group?.id}`} openByDefault={activeStep === 4} onSuccess={() => setActiveStep(5)} />
+            <ResolveDuplicatesStep key={`ResolveDuplicatesStep-${group?.id}`} openByDefault={activeStep === 5} onSuccess={() => {
                 markStepComplete(5)
                 setActiveStep(6)
             }} />
-            <UploadStep openByDefault={activeStep === 6} />
+            <UploadStep key={`UploadStep-${group?.id}`} openByDefault={activeStep === 6} />
         </div>
     );
 }

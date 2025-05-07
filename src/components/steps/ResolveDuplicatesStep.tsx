@@ -1,14 +1,10 @@
 'use client';
 
-import {useEffect, useMemo, useState} from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
+import {useEffect, useState} from 'react';
 import { Button } from '@/components/ui/button';
 import StepPanel from '@/components/steps/StepPanel';
 import {useInputData} from "@/lib/InputDataContext";
-import {useGroup} from "@/lib/GroupContext";
-import {DataRowStatus} from "@/lib/DataRowParser";
 import {TriangleAlertIcon} from "lucide-react";
-import {cleanString, fuzzyCoerce, stringToFuzzyRegex} from "@/lib/utils";
 import {useUploadData} from "@/lib/UploadDataContext";
 
 export default function ResolveDuplicatesStep({

@@ -20,7 +20,7 @@ type UploadFilesOptions = {
   files: string[];
   rootDir: FileSystemDirectoryHandle;
   articleId: number;
-  fetch: AuthState["fetch"];
+  patchedFetch: AuthState["fetch"];
   // Return `true` to stop the upload process
   onProgress?: (status: UploadFileStatus) => void | boolean;
 };
@@ -44,7 +44,7 @@ export async function uploadFiles({
                                     files,
                                     rootDir,
                                     articleId,
-    fetch,
+    patchedFetch,
                                     onProgress,
                                   }: UploadFilesOptions): Promise<void> {
   // Check actual API use support
@@ -72,7 +72,7 @@ export async function uploadFiles({
     status.name = file.name;
 
     // Step 1: Initiate upload
-    const uploadInit = await fetch<FigshareCreateFile>(
+    const uploadInit = await patchedFetch<FigshareCreateFile>(
         `https://api.figshare.com/v2/account/articles/${articleId}/files`,
         {
           method: "POST",
@@ -88,12 +88,13 @@ export async function uploadFiles({
     );
 
     const uploadUrl = uploadInit.location;
-    console.log({uploadInit, uploadUrl});
 
-    const uploadLocation = await fetch<FigshareInitiateUpload>(uploadUrl);
+    const uploadLocation = await patchedFetch<FigshareInitiateUpload>(uploadUrl);
+
+    console.log({uploadInit, uploadLocation});
 
     // Step 2: Get parts list from FigShare
-    const partsInfo = await fetch<FigshareUploadStart>(uploadLocation.upload_url);
+    const partsInfo = await patchedFetch<FigshareUploadStart>(uploadLocation.upload_url);
     status.figshareStatus = partsInfo.status;
     status.partCount = partsInfo.parts?.length ?? 0;
     const parts =
@@ -104,7 +105,7 @@ export async function uploadFiles({
     for (let partIndex = 0; partIndex < parts.length; partIndex++) {
       const part = parts[partIndex];
 
-      const partUrl = `${uploadUrl}/${part.partNo}`;
+      const partUrl = `${uploadLocation.upload_url}/${part.partNo}`;
 
       // Get byte range and slice file
       const blobPart = file.slice(part.startOffset, part.endOffset + 1);
@@ -119,7 +120,7 @@ export async function uploadFiles({
     }
 
     // Step 3: Complete upload
-    await fetch(
+    await patchedFetch(
         `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadLocation.id}`,
         { method: "POST" },
     );
