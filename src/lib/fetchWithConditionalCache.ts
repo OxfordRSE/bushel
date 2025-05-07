@@ -97,7 +97,7 @@ export async function fetchAllPagesWithConditionalCache<T>(
     url: string,
     options: Partial<RequestInit>,
     onPage: (data: T[]) => void,
-    pageSize: number = 100
+    pageSize: number = 1000
 ): Promise<void> {
   try {
     let offset = 0;
