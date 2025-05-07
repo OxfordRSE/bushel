@@ -10,9 +10,10 @@ import {
   FigshareArticleCreateResponse, FundingCreate,
   RelatedMaterial
 } from "@/lib/types/figshare-api";
-import {Updater, useImmer} from "use-immer";
+import {useImmer} from "use-immer";
 import {useGroup} from "@/lib/GroupContext";
 import {useAuth} from "@/lib/AuthContext";
+import {cleanString, fuzzyCoerce, stringToFuzzyRegex} from "@/lib/utils";
 
 type UploadStatus = 'pending' | 'uploading' | 'created' | 'completed' | 'error' | 'skipped' | 'cancelled';
 
@@ -33,28 +34,66 @@ export interface UploadRowState {
   completedAt?: number;
 }
 
-type UploadRowStateWithTitle = UploadRowState & { title?: string };
+type UploadRowStateWithTitle = UploadRowState & {
+  title?: string;
+};
+
+type FuzzyMatch = (Pick<UploadRowStateWithTitle,"title"|"excelRowNumber"> & { articleTitle: string })
 
 interface UploadDataContextType {
   rows: UploadRowStateWithTitle[];
   getRow: (id: DataRowId) => UploadRowStateWithTitle | undefined;
-  skipRows: DataRowStatus["id"][]; // Rows to be skipped during upload
-  setSkipRows: Updater<DataRowStatus["id"][]>;
   uploadRow: (id: DataRowId) => Promise<void>;
   uploadAll: () => Promise<void>;
   cancelRow: (id: DataRowId) => void;
   cancelAll: () => void;
   getSummaryCSV: () => string;
+  exactMatches: string[];
+  fuzzyWarnings: FuzzyMatch[]
 }
 
 const UploadDataContext = createContext<UploadDataContextType | undefined>(undefined);
 
 export function UploadDataProvider({ children }: { children: ReactNode }) {
-  const [skipRows, setSkipRows] = useImmer<DataRowStatus["id"][]>([]);
   const [uploadState, setUploadState] = useImmer<Record<DataRowStatus["id"], UploadRowState>>({});
-  const {group, fields} = useGroup();
+  const {group, fields, articles} = useGroup();
   const {institutionLicenses, institutionCategories, fetch} = useAuth();
   const { rows: parsedRows, getParser, completed: inputDataParsingComplete, parserContext } = useInputData();
+  const articleTitles = useMemo(() => articles?.map(article => article.title) || [], [articles]);
+
+  // Utilities for fuzzy matching titles
+  const exactMatches = useMemo(() => {
+    return parsedRows
+        .filter(r => r.title && articleTitles.includes(r.title))
+        .map(r => r.title)
+        .filter(Boolean) as string[];
+  }, [parsedRows, articleTitles]);
+
+  const cleanArticleTitles = useMemo(() => {
+    return articleTitles.map(cleanString);
+  }, [articleTitles]);
+
+  const articleTitleRegex = useMemo(() => {
+    return cleanArticleTitles.map(stringToFuzzyRegex);
+  }, [cleanArticleTitles]);
+
+  const fuzzyWarnings = useMemo(() => {
+    return parsedRows.map(r => {
+      if (!r.title)
+        return null;
+      const fuzzy = fuzzyCoerce(r.title, articleTitles, true, articleTitleRegex);
+      const matchIndex = cleanArticleTitles.findIndex(title => title === fuzzy);
+      if (matchIndex === -1)
+        return null;
+      return {
+        excelRowNumber: r.excelRowNumber,
+        title: r.title,
+        articleTitle: fuzzy,
+      };
+    })
+        .filter(Boolean)
+        .filter(match => !exactMatches.includes(match!.title)) as FuzzyMatch[];
+  }, [parsedRows, articleTitles, articleTitleRegex, cleanArticleTitles, exactMatches]);
 
   // Extract figshare upload data once parsing is complete
   const uploadData: UploadRowData[] = useMemo(() => {
@@ -105,12 +144,12 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
           {
             id: r.id,
             excelRowNumber: r.excelRowNumber,
-            status: (skipRows.includes(r.id) ? 'skipped' : 'pending') as UploadStatus,
+            status: (exactMatches.includes(r.title ?? "") ? 'skipped' : 'pending') as UploadStatus,
             fileProgress: undefined,
           }
         ])))
     );
-  }, [inputDataParsingComplete, parsedRows, setUploadState, skipRows]);
+  }, [exactMatches, inputDataParsingComplete, parsedRows, setUploadState]);
 
   const add_title = useCallback((row: UploadRowState) => {
     const parsedRow = parsedRows.find(r => r.id === row.id);
@@ -130,7 +169,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
 
   const uploadRow = useCallback((id: DataRowId) => {
     const upload_row = uploadData.find(r => r.id === id);
-    if (!upload_row || skipRows.includes(id)) return Promise.resolve();
+    if (!upload_row || exactMatches.includes(upload_row.data.title)) return Promise.resolve();
     let cancelled = false;
 
     const cancel = () => {
@@ -207,7 +246,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
       }
       uploadControllers.current.delete(id);
     })();
-  }, [fetch, parserContext.rootDir, setUploadState, skipRows, uploadData]);
+  }, [exactMatches, fetch, parserContext.rootDir, setUploadState, uploadData]);
 
   const uploadAll = useCallback(async () => {
     await Promise.all(uploadData.map(r => r.id).map(uploadRow));
@@ -246,13 +285,16 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   const ctx: UploadDataContextType = {
     rows: Object.values(uploadState).map(add_title),
     getRow,
-    skipRows,
-    setSkipRows,
     uploadRow,
     uploadAll,
     cancelRow,
     cancelAll,
     getSummaryCSV,
+    exactMatches,
+    fuzzyWarnings: fuzzyWarnings.map(w => ({
+      ...w,
+      title: parsedRows.find(r => r.excelRowNumber === w.excelRowNumber)?.title,
+    })).filter(Boolean) as (Pick<UploadRowStateWithTitle,"title"|"excelRowNumber"> & { articleTitle: string })[]
   };
 
   return <UploadDataContext.Provider value={ctx}>{children}</UploadDataContext.Provider>;

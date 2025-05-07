@@ -19,63 +19,23 @@ export default function ResolveDuplicatesStep({
     onSuccess?: () => void;
 }) {
     const { rows} = useInputData();
-    const { skipRows, setSkipRows } = useUploadData();
-    const { articles} = useGroup();
-    const articleTitles = useMemo(() => articles?.map(article => article.title) || [], [articles]);
+    const { exactMatches, fuzzyWarnings } = useUploadData();
     const [done, setDone] = useState(false);
 
     useEffect(() => {
         setDone(false);
     }, [rows]);
 
-    const exactMatches = useMemo(() => {
-        return rows.filter(r => r.title && articleTitles.includes(r.title));
-    }, [rows, articleTitles]);
-
-    const cleanArticleTitles = useMemo(() => {
-        return articleTitles.map(cleanString);
-    }, [articleTitles]);
-
-    const articleTitleRegex = useMemo(() => {
-        return cleanArticleTitles.map(stringToFuzzyRegex);
-    }, [cleanArticleTitles]);
-
-    const fuzzyWarnings = useMemo(() => {
-        return rows.map(r => {
-            if (!r.title)
-                return null;
-            const fuzzy = fuzzyCoerce(r.title, articleTitles, true, articleTitleRegex);
-            const matchIndex = cleanArticleTitles.findIndex(title => title === fuzzy);
-            if (matchIndex === -1)
-                return null;
-            return {
-                excelRowNumber: r.excelRowNumber,
-                title: r.title,
-                articleTitle: fuzzy,
-            };
-        })
-            .filter(Boolean)
-            .filter(match => !exactMatches.some(r => r.excelRowNumber === match!.excelRowNumber));
-    }, [rows, articleTitles, exactMatches]);
-
-    const toggleAll = (check: boolean) =>
-        setSkipRows(check ? exactMatches.map(r => r.id) : []);
-
-    const toggleOne = (index: DataRowStatus["id"]) =>
-        setSkipRows((sel) =>
-            sel.includes(index) ? sel.filter(i => i !== index) : [...sel, index]
-        );
-
     let summary: Parameters<typeof StepPanel>[0]["title"] = <></>;
     let status: Parameters<typeof StepPanel>[0]["status"] = 'default';
     let iconOverride: Parameters<typeof StepPanel>[0]["iconOverride"]  = undefined;
     if (done) {
-        summary = `Overwrite ${exactMatches.length - skipRows.length}, skip ${skipRows.length}`;
+        summary = `Skipping ${exactMatches.length} existing articles`;
         status = 'complete';
     } else if (!rows.length) {
-        summary = 'Resolve duplicates';
+        summary = 'Acknowledge duplicates';
     } else if (exactMatches.length) {
-        summary = `Resolve duplicates: ${exactMatches.length} found`;
+        summary = `Acknowledge duplicates: ${exactMatches.length} found`;
         status = 'error';
     } else {
         summary = 'No duplicates found';
@@ -95,28 +55,19 @@ export default function ResolveDuplicatesStep({
         >
             {exactMatches.length ? (
                 <>
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <Checkbox
-                                checked={skipRows.length === exactMatches.length}
-                                onCheckedChange={(checked) => toggleAll(checked === true)}/>
-                            <span>Select all</span>
-                        </div>
-                        {exactMatches.map(row => (
-                            <div key={row.id} className="flex items-center gap-2 ps-4">
-                                <Checkbox
-                                    checked={skipRows.includes(row.id)}
-                                    onCheckedChange={() => toggleOne(row.id)}/>
-                                <span>
-                              Keep FigShare version of <strong>{row.title}</strong>
-                          </span>
-                            </div>
+                    {exactMatches.length > 0 && <p>There are articles on FigShare with the following titles. They will not be overridden.</p>}
+                    <ul className="space-y-2 overflow-y-auto max-h-[20rem]">
+                        {exactMatches.map((title, i) => (
+                            <li key={i} className="flex items-center gap-2 ps-4">
+                              {title}
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                     <Button onClick={() => {
                         setDone(true);
                         onSuccess?.();
-                    }} className="mt-4 cursor-pointer">Done</Button></>
+                    }} className="mt-4 cursor-pointer">Yes, skip {exactMatches.length} existing records</Button>
+                </>
             ) : (
                 <p className="text-sm text-muted-foreground">No duplicate titles found.</p>
             )}

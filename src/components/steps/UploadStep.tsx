@@ -19,7 +19,7 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
     cancelAll,
     cancelRow,
     getSummaryCSV,
-    skipRows,
+    exactMatches,
   } = useUploadData();
 
   const all_rows_valid = useMemo(() => {
@@ -87,7 +87,7 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
               </TableHeader>
               <TableBody>
                 {rows.map(row =>
-                    skipRows.includes(row.id) ? (
+                    exactMatches.includes(row.title ?? "") ? (
                         <TableRow key={row.id} className="opacity-25 bg-gray-50">
                           <TableCell>{row.excelRowNumber}</TableCell>
                           <TableCell>{row.title}</TableCell>
