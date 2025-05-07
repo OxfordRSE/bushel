@@ -53,7 +53,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   const [skipRows, setSkipRows] = useImmer<DataRowStatus["id"][]>([]);
   const [uploadState, setUploadState] = useImmer<Record<DataRowStatus["id"], UploadRowState>>({});
   const {group, fields} = useGroup();
-  const {institutionLicenses, institutionCategories, fsFetch} = useAuth();
+  const {institutionLicenses, institutionCategories, fetch} = useAuth();
   const { rows: parsedRows, getParser, completed: inputDataParsingComplete, parserContext } = useInputData();
 
   // Extract figshare upload data once parsing is complete
@@ -157,11 +157,11 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
       try {
         if (cancelled) return cancel();
 
-        const result = await fsFetch<FigshareArticleCreateResponse>(
+        const result = await fetch<FigshareArticleCreateResponse>(
             'https://api.figshare.com/v2/account/articles',
             {
               method: 'POST',
-              body: JSON.stringify(upload_row.data),
+              body: upload_row.data,
             }
         );
 
@@ -177,7 +177,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
             files: upload_row.files,
             articleId: result.entity_id,
             rootDir: parserContext.rootDir!,
-            fsFetch,
+            fetch,
             onProgress: (status) => {
               setUploadState(prev => ({
                 ...prev,
@@ -207,7 +207,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
       }
       uploadControllers.current.delete(id);
     })();
-  }, [fsFetch, parserContext.rootDir, setUploadState, skipRows, uploadData]);
+  }, [fetch, parserContext.rootDir, setUploadState, skipRows, uploadData]);
 
   const uploadAll = useCallback(async () => {
     await Promise.all(uploadData.map(r => r.id).map(uploadRow));

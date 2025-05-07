@@ -503,9 +503,9 @@ export const figshareHandlers = [
   http.get('https://api.figshare.com/v2/account/institution/accounts', ({request}) => {
     // Simulate pagination
     const url = new URL(request.url);
-    const offset = Number(url.searchParams.get('offset')) || 0;
-    const limit = Number(url.searchParams.get('limit')) || 10;
-    const paginatedUsers = users.slice(offset, offset + limit);
+    const offset = Math.max(Number(url.searchParams.get('page')), 1);
+    const limit = Number(url.searchParams.get('page_size')) || 10;
+    const paginatedUsers = users.slice(limit * (offset - 1), offset * limit);
     return HttpResponse.json(paginatedUsers);
   }),
 

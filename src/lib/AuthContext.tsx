@@ -3,7 +3,7 @@
 import {createContext, useCallback, useContext, useEffect, useState} from 'react';
 import {loginWithFigShare} from '@/lib/auth';
 import {FigshareCategory, FigshareLicense, FigshareUser} from "@/lib/types/figshare-api";
-import {fetchAllPagesWithConditionalCache, fetchWithConditionalCache} from "@/lib/fetchWithConditionalCache";
+import {useQuery, useQueryClient, UseQueryResult} from "@tanstack/react-query";
 
 export type AuthState = {
   token: string | null;
@@ -13,13 +13,12 @@ export type AuthState = {
   isLoggedIn: boolean;
   login: () => Promise<void>;
   logout: () => void;
-  institutionLicenses: FigshareLicense[] | null;
-  institutionCategories: FigshareCategory[] | null;
+  institutionLicenses: FigshareLicense[];
+  institutionCategories: FigshareCategory[];
   // impersonationTarget if set, otherwise user
   targetUser: FigshareUser | null;
   // Run a fetch query on FigShare with token, impersonation, and caching
-  fsFetch: <T = unknown>(url: string, options?: RequestInit) => Promise<T>;
-  fsFetchPaginated: <T = unknown>(url: string, onPage: (data: T[]) => void, options?: RequestInit, pageSize?: number) => Promise<void>;
+  fetch: <T>(url: string | URL, options?: Omit<RequestInit, "body"> & {body?: object}) => Promise<T>;
 };
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -28,77 +27,126 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<FigshareUser | null>(null);
   const [impersonationTarget, setImpersonationTarget] = useState<FigshareUser | null>(null);
-  const [institutionLicenses, setInstitutionLicenses] = useState<FigshareLicense[] | null>(null);
-  const [institutionCategories, setInstitutionCategories] = useState<FigshareCategory[] | null>(null);
+  const queryClient = useQueryClient();
 
-  const prepQuery = useCallback((url: string|URL, options: RequestInit) => {
-    const headers = new Headers(options.headers);
-    if (token) headers.set('Authorization', `token ${token}`);
-    if (impersonationTarget) {
-      if (options.method && options.method.toUpperCase() === 'POST') {
-        options.body = JSON.stringify(
-            {
-              ...JSON.parse(options.body as string),
-              impersonate: impersonationTarget.id,
-            }
-        );
-      } else {
-        url = new URL(url);
-        url.searchParams.set('impersonate', impersonationTarget.id.toString());
-      }
+  // Patch GET requests to support Auth and Impersonation
+  const patchGET = useCallback((
+      url: string | URL,
+      headers: HeadersInit = {}
+  ): {
+    url: typeof url;
+    headers: Record<string, string> & { Authorization: `token ${string}` };
+  } => {
+    // Convert headers to object
+    if (Array.isArray(headers)) {
+      headers = Object.fromEntries(headers);
     }
-    return {url, options: {...options, headers}};
+    if (headers instanceof Headers) {
+      headers = Object.fromEntries(headers.entries());
+    }
+    const is_URL = url instanceof URL;
+    const as_URL = is_URL ? url : new URL(url);
+    as_URL.searchParams.set('token', token || '');
+    if (impersonationTarget) {
+      as_URL.searchParams.set('impersonate', impersonationTarget.id.toString());
+    }
+    return {
+      url: is_URL ? as_URL : as_URL.toString(),
+      headers: {...headers, Authorization: `token ${token}`}
+    };
   }, [token, impersonationTarget]);
 
-  const fsFetch = useCallback(async <T,>(url: string, options: RequestInit = {}): Promise<T> => {
-    const query = prepQuery(url, options);
-    return await fetchWithConditionalCache(query.url.toString(), query.options);
-  }, [prepQuery]);
+  // Patch POST requests to support Auth and Impersonation
+  const patchPOST = useCallback((
+      body: object | null = {},
+      headers: HeadersInit = {}
+  ): {
+    body: typeof body & { impersonate?: number };
+    headers: Record<string, string> & { Authorization: `token ${string}` };
+  } => {
+    // Convert headers to object
+    if (Array.isArray(headers)) {
+      headers = Object.fromEntries(headers);
+    }
+    if (headers instanceof Headers) {
+      headers = Object.fromEntries(headers.entries());
+    }
+    return {
+      body: {
+        ...body ?? {},
+        impersonate: impersonationTarget ? impersonationTarget.id : undefined,
+      },
+      headers: {...headers, Authorization: `token ${token}`},
+    }
+  }, [token, impersonationTarget]);
 
-  const fsFetchPaginated = useCallback(async <T,>(url: string, onPage: (data: T[]) => void, options: RequestInit = {}, pageSize = 100) => {
-    const query = prepQuery(url, options);
-    return await fetchAllPagesWithConditionalCache(query.url.toString(), query.options, onPage, pageSize);
-  }, [prepQuery]);
+  const patchedFetch = useCallback(async <T,>(url: string | URL, options?: Omit<RequestInit, "body"> & {body?: object}): Promise<T> => {
+    let query;
+    if (options?.method === "POST") {
+      const {body, headers} = patchPOST(options?.body, options?.headers);
+      query = fetch(url, {...options, body: JSON.stringify(body), headers});
+    } else {
+      const {url: patchedUrl, headers} = patchGET(url, options?.headers);
+      query = fetch(patchedUrl, {...options as RequestInit, headers});
+    }
+    return await query
+        .then(r => {
+          if (!r.ok) {
+            let error;
+            try {
+              error = r.json();
+            } catch {
+              throw new Error(`Error: ${r.status} ${r.statusText}`);
+            }
+            throw new Error(`Error: ${r.status} ${r.statusText} ${error}`);
+          }
+          return r;
+        })
+        .then(r => r.json());
+  }, [patchGET, patchPOST]);
 
-  const clear = () => {
+  const clear = useCallback(async () => {
     setToken(null);
     setUser(null);
     setImpersonationTarget(null);
-    setInstitutionLicenses(null);
-    setInstitutionCategories(null);
-  }
+    await queryClient.invalidateQueries({queryKey: ['institution']});
+  }, [queryClient]);
 
-  const fetchInstitutionLicenses = async (token: string) => {
-    const licenses = await fsFetch<FigshareLicense[]>('https://api.figshare.com/v2/account/licenses',{
-      headers: { Authorization: `token ${token}` }
-    });
-    setInstitutionLicenses(licenses);
-  }
+  const licences = useQuery({
+        queryKey: ['institution', 'licenses', impersonationTarget?.id, user?.id],
+        enabled: !!token,
+        queryFn: async () => {
+          const {url, headers} = patchGET('https://api.figshare.com/v2/account/licenses');
+          const r = await fetch(url, { headers });
+          return await r.json() as FigshareLicense[];
+        }
+      }
+  );
 
-  const fetchInstitutionCategories = async (token: string) => {
-    const categories = await fsFetch<FigshareCategory[]>('https://api.figshare.com/v2/account/categories',{
-      headers: { Authorization: `token ${token}` }
-    });
-    setInstitutionCategories(categories);
-  }
+  const categories = useQuery({
+    queryKey: ['institution', 'categories', impersonationTarget?.id, user?.id],
+    enabled: !!token,
+    queryFn: async () => {
+      const {url, headers} = patchGET('https://api.figshare.com/v2/account/categories');
+      const r = await fetch(url, {headers});
+      return await r.json() as FigshareCategory[];
+    }
+  });
 
   // Fetch user + token info on mount (via /api/me)
   useEffect(() => {
     (async () => {
       const res = await fetch('/api/me');
       if (!res.ok) {
-        clear();
+        await clear();
         return;
       }
 
       const data = await res.json();
       setToken(data.token);
       setUser(data.user);
-
-      fetchInstitutionCategories(data.token);
-      fetchInstitutionLicenses(data.token);
     })();
-  }, []);
+  }, [clear]);
 
   const login = useCallback(async () => {
     const { token, user } = await loginWithFigShare();
@@ -107,11 +155,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const logout = useCallback(async () => {
-    clear()
+    await clear()
     // Optional: call /api/logout to clear cookie
     await fetch('/api/logout', { method: 'POST' }).catch(() => {});
-    window.location.href = '/';
-  }, []);
+    // window.location.href = '/';
+  }, [clear]);
 
   return (
       <AuthContext.Provider
@@ -123,11 +171,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             logout,
             impersonationTarget,
             setImpersonationTarget,
-            institutionCategories,
-            institutionLicenses,
+            institutionCategories: categories.data ?? [],
+            institutionLicenses: licences.data ?? [],
             targetUser: impersonationTarget ?? user,
-            fsFetch,
-            fsFetchPaginated,
+            fetch: patchedFetch
           }}
       >
         {children}

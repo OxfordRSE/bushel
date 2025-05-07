@@ -8,54 +8,42 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {clsx} from "clsx";
 import {useGroup} from "@/lib/GroupContext";
-import {FigshareAPIError} from "@/lib/utils";
+import {useQuery} from "@tanstack/react-query";
 
 const DISPLAY_PAGE_SIZE = 20;
 
 export default function GroupPicker({ openByDefault = false, onSelect }: { openByDefault?: boolean, onSelect?: () => void }) {
-  const { token, fsFetchPaginated } = useAuth();
+  const { token, fetch, impersonationTarget } = useAuth();
   const [search, setSearch] = useState('');
   const [displayPage, setDisplayPage] = useState(1);
-  const [allGroups, setAllGroups] = useState<FigshareGroup[]>([]);
   const {group, setGroup, fields} = useGroup();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<FigshareAPIError|null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     setDisplayPage(1);
   }, [search]);
 
-  const fetchGroups = () => {
-    if (!token) return;
-    setLoading(true);
-    setError(null);
-    setAllGroups([]);
-
-    fsFetchPaginated<FigshareGroup>(
-        'https://api.figshare.com/v2/account/institution/groups',
-        (newGroups) => setAllGroups(prev => [...prev, ...newGroups])
-    ).catch(setError).finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    fetchGroups();
-  }, [token, reloadKey]); // add reloadKey
-
+  const {data: allGroups, isFetching, error} = useQuery({
+    queryKey: ['groups', token, reloadKey, impersonationTarget?.id],
+    queryFn: async () => {
+      return await fetch<FigshareGroup[]>(`https://api.figshare.com/v2/account/institution/groups`);
+    },
+    enabled: !!token,
+  });
 
   const filtered = search
-      ? allGroups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
+      ? allGroups?.filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
       : allGroups;
 
-  const totalDisplayPages = Math.ceil(filtered.length / DISPLAY_PAGE_SIZE);
-  const paginatedDisplay = filtered.slice(
+  const totalDisplayPages = Math.ceil(filtered?.length ?? 1 / DISPLAY_PAGE_SIZE);
+  const paginatedDisplay = filtered?.slice(
       (displayPage - 1) * DISPLAY_PAGE_SIZE,
       displayPage * DISPLAY_PAGE_SIZE
   );
 
   const summary =
       error
-          ? <span className="text-red-600">Error fetching groups: {error.details}</span>
+          ? <span className="text-red-600">Error fetching groups: {error.message}</span>
           : group
               ? <span className="text-muted-foreground">Group: {group.name}</span>
               : <span>Select a group</span>;
@@ -91,18 +79,18 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
             />
           </div>
 
-          {loading && (
+          {isFetching && (
               <p className="text-sm text-muted-foreground">Loading groups…</p>
           )}
           {error && (
               <div className="text-sm text-red-600 space-y-2">
-                <p>Error: {error.details}</p>
+                <p>Error: {error.message}</p>
                 <Button variant="outline" onClick={() => setReloadKey(reloadKey + 1)} className="cursor-pointer">Retry</Button>
               </div>
           )}
 
           <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm items-center">
-            {paginatedDisplay.map(g => (
+            {paginatedDisplay?.map(g => (
                 <li
                     key={g.id}
                     className="flex"

@@ -9,65 +9,57 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {UserX} from "lucide-react";
 import {clsx} from "clsx";
-import {FigshareAPIError} from "@/lib/utils";
+import {expandPages} from "@/lib/utils";
+import {useInfiniteQuery} from "@tanstack/react-query";
 
 const EMAIL_REGEX = /^\w+@\w+\.\w+$/;
 const DISPLAY_PAGE_SIZE = 20;
 
 export default function ImpersonationStep({ openByDefault = false, onSelect }: { openByDefault?: boolean, onSelect?: () => void }) {
-  const { isLoggedIn, user, impersonationTarget, setImpersonationTarget, token, fsFetchPaginated } = useAuth();
+  const { isLoggedIn, impersonationTarget, setImpersonationTarget, token, fetch } = useAuth();
   const [searchMode, setSearchMode] = useState<'email' | 'name'>('email');
   const [search, setSearch] = useState('');
   const [displayPage, setDisplayPage] = useState(1);
-  const [allUsers, setAllUsers] = useState<FigshareUser[]>([]);
   const [emailMatch, setEmailMatch] = useState<FigshareUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     setDisplayPage(1);
   }, [search, searchMode]);
 
-  const fetchUsers = () => {
-    if (!token) return;
-    setLoading(true);
-    setError(null);
-    setAllUsers([]);
+  const limit = 1000;
 
-    fsFetchPaginated<FigshareUser>(
-        'https://api.figshare.com/v2/account/institution/accounts',
-        (newUsers) => setAllUsers(prev => [...prev, ...newUsers].filter(u => u.id !== user?.id))
-    ).catch((err: Error|unknown) => {
-      setError(
-          err instanceof Error
-              ? err instanceof FigshareAPIError
-                  ? err.details
-                  : err.message
-              : 'Failed to load users'
-      );
-    }).finally(() => setLoading(false));
-  }
+  const {data: allUsers, isFetching, hasNextPage, fetchNextPage, error } = useInfiniteQuery({
+    queryKey: ['users', token, reloadKey],
+    queryFn: async ({ pageParam }) => {
+      return await fetch<FigshareUser[]>(`https://api.figshare.com/v2/account/institution/accounts?page_size=${limit}&page=${pageParam}`);
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => {
+      const last = lastPage as FigshareUser[];
+      if (last.length < limit) return undefined;
+      return pages.length + 1;
+    },
+    enabled: !!token,
+  });
 
   useEffect(() => {
-    fetchUsers();
-  }, [token, reloadKey]);
+      if (!isFetching && hasNextPage)
+      fetchNextPage();
+  }, [allUsers?.pages.length, fetchNextPage, isFetching, hasNextPage]);
 
   useEffect(() => {
     if (!token || !EMAIL_REGEX.test(search)) {
       setEmailMatch(null);
       return;
     }
-    fetch(`https://api.figshare.com/v2/account/institution/accounts?email=${search}`, {
-      headers: { Authorization: `token ${token}` },
-    })
-        .then(res => res.ok ? res.json() : Promise.resolve([]))
+    fetch<FigshareUser[]>(`https://api.figshare.com/v2/account/institution/accounts?email=${search}`)
         .then(arr => setEmailMatch(arr[0] || null))
         .catch(() => setEmailMatch(null));
-  }, [search, token]);
+  }, [fetch, search, token]);
 
   const filtered = search
-      ? allUsers.filter(u => {
+      ? expandPages(allUsers?.pages).filter(u => {
             if (searchMode === 'name') {
               return u.first_name.toLowerCase().includes(search.toLowerCase()) ||
                   u.last_name.toLowerCase().includes(search.toLowerCase())
@@ -76,7 +68,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
             }
           }
       )
-      : allUsers;
+      : expandPages(allUsers?.pages);
 
   const displayUsers = emailMatch
       ? [emailMatch, ...filtered.filter(u => u.id !== emailMatch.id)]
@@ -90,7 +82,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
 
   const summary =
       error
-          ? <span className="text-red-600">Error fetching group list: {error}</span>
+          ? <span className="text-red-600">Error fetching group list: {error.message}</span>
           : impersonationTarget
               ? <span className="text-muted-foreground">Impersonating {impersonationTarget.first_name} {impersonationTarget.last_name}</span>
               : <span>Acting as myself</span>;
@@ -144,12 +136,12 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
             </div>
           </div>
 
-          {loading && (
+          {(isFetching || hasNextPage) && (
               <p className="text-sm text-muted-foreground">Loading users…</p>
           )}
           {error && (
               <div className="text-sm text-red-600 space-y-2">
-                <p>Error: {error}</p>
+                <p>Error: {error.message}</p>
                 <Button variant="outline" onClick={() => setReloadKey(reloadKey + 1)}>Retry</Button>
               </div>
           )}
