@@ -1,5 +1,4 @@
 import { fileRefCheck, FileRefCheckContext } from "@/lib/checks/check_files";
-import { dateFormatCheck } from "@/lib/checks/check_dates";
 import { Field } from "@/lib/InputDataContext";
 import {
   categoryCountCheck,
@@ -140,7 +139,6 @@ export class DataRowParser {
   public checks: Record<string, CheckResult[]> = {
     "Read data": [{ status: "pending" }],
     [fileRefCheck.name]: [{ status: "pending" }],
-    [dateFormatCheck.name]: [{ status: "pending" }],
     [categoryCountCheck.name]: [{ status: "pending" }],
     [keywordCountCheck.name]: [{ status: "pending" }],
     [selectValuesCheck.name]: [{ status: "pending" }],
@@ -303,7 +301,6 @@ export class DataRowParser {
   async runAllChecks(): Promise<void> {
     const checks = [
       fileRefCheck,
-      dateFormatCheck,
       categoryCountCheck,
       keywordCountCheck,
       selectValuesCheck,
