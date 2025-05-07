@@ -1,4 +1,4 @@
-import {useMemo, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import { useInputData } from '@/lib/InputDataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ type RowsSummary = Record<DataRowStatus["status"], number> & {
 
 export default function InputDataStep({ openByDefault = true, onSuccess }: { openByDefault?: boolean, onSuccess?: () => void }) {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const { rows, file, setFile, halt, reset, check, ready, loadErrors, loadWarnings, working, setParserContext, parserContext } = useInputData();
+    const { rows, file, setFile, halt, reset, check, ready, loadErrors, loadWarnings, working, setParserContext, parserContext, resetKey } = useInputData();
     const {group} = useGroup();
     const [maxWarnings, setMaxWarnings] = useState(20);
     const [maxErrors, setMaxErrors] = useState(20);
@@ -60,6 +60,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
         reset(false)
     }
 
+    useEffect(resetFile, [reset, resetKey])
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         resetFile(false)

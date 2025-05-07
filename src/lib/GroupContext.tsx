@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import {createContext, useContext, useState, ReactNode, useEffect} from 'react';
 import type {FigshareGroup, FigshareCustomField, FigshareArticle, FigshareItemType} from '@/lib/types/figshare-api';
 import {useAuth} from "@/lib/AuthContext";
 import {FigshareAPIError} from "@/lib/utils";
@@ -24,7 +24,7 @@ interface GroupContextType {
 const GroupContext = createContext<GroupContextType | undefined>(undefined);
 
 export function GroupProvider({ children }: { children: ReactNode }) {
-  const {token, fsFetch, fsFetchPaginated} = useAuth();
+  const {token, fsFetch, fsFetchPaginated, user, impersonationTarget} = useAuth();
   const [group, setGroupState] = useState<FigshareGroup | null>(null);
   const [fields, setFields] = useState<FigshareCustomField[] | null>(null);
   const [articles, setArticles] = useState<FigshareArticle[] | null>(null);
@@ -71,6 +71,8 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     setArticles(null);
     setErrors([]);
   };
+
+  useEffect(clearGroup, [user?.id, impersonationTarget?.id]);
 
   return (
       <GroupContext.Provider value={{ group, fields, articles, setGroup, clearGroup, errors, groupItemTypes }}>

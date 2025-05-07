@@ -30,6 +30,7 @@ interface InputDataContextValue {
   working: boolean;
   completed: boolean;
   getParser: (id: DataRowStatus["id"]) => DataRowParser;
+  resetKey: number;
 }
 
 type combineFieldsArgs = {
@@ -211,6 +212,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     minKeywordCount: 1,
     maxKeywordCount: 100,
   });
+  const [resetKey, setResetKey] = useImmer<number>(0);
 
   useEffect(() => {
     setParserContext((draft) => {
@@ -260,7 +262,24 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     setRows([]);
     setLoadErrors([]);
     setLoadWarnings([]);
-  }, [_setFile, field_queries_loaded, halt, setCompleted, setLoadErrors, setLoadWarnings, setParserContext, setReady, setRows, targetUser?.quota, targetUser?.used_quota]);
+  }, [
+      _setFile,
+    field_queries_loaded,
+    halt,
+    setCompleted,
+    setLoadErrors,
+    setLoadWarnings,
+    setParserContext,
+    setReady,
+    setRows,
+    targetUser?.quota,
+    targetUser?.used_quota
+  ]);
+
+  useEffect(() => {
+    reset();
+    setResetKey(prev => prev + 1);
+  }, [reset, setResetKey, targetUser?.id]);
 
   const setFile = useCallback(async (file: File, clearCurrent = true) => {
     if (debug) console.debug('setFile', file);
@@ -371,7 +390,8 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         completed,
         parserContext, setParserContext,
         check,
-        getParser
+        getParser,
+        resetKey
       }}>
         {children}
       </InputDataContext.Provider>
