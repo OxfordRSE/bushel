@@ -22,21 +22,16 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
 
     // Check actual API use support
     if (
-      typeof FileSystemHandle === "undefined" ||
-      !("getFile" in FileSystemFileHandle.prototype)
+        typeof FileSystemHandle === "undefined" ||
+        !("getFile" in FileSystemFileHandle.prototype)
     ) {
       emit({
         status: "failed",
         error: new DataError(
-          "This browser does not support the File System Access API",
-          "UnsupportedBrowser",
+            "This browser does not support the File System Access API",
+            "UnsupportedBrowser",
         ),
       });
-      return;
-    }
-
-    if (!rootDir) {
-      emit({ status: "failed", error: new DataError("No root directory provided", "NoRootDir") });
       return;
     }
 
@@ -53,8 +48,8 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
             emit({
               status: "in_progress",
               error: new DataError(
-                `Invalid filename format: ${filename} is of type ${typeof filename}, not string`,
-                "InvalidFilenameFormat",
+                  `Invalid filename format: ${filename} is of type ${typeof filename}, not string`,
+                  "InvalidFilenameFormat",
               ),
             });
             continue;
@@ -63,19 +58,16 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
           file = await fileHandle.getFile();
         } else {
           // We can't check absolute paths without a handle in the browser
-          emit({
-            status: "in_progress",
-            warning: `Cannot verify "${filename}" without a working directory (treated as absolute)`,
-          });
-          continue;
+          emit({ status: "failed", error: new DataError("A root directory must be selected when a Files column is present", "NoRootDir") });
+          return;
         }
 
         if (file.size === 0) {
           if (
-            emit({
-              status: "in_progress",
-              warning: `File is empty: ${filename}`,
-            })
+              emit({
+                status: "in_progress",
+                warning: `File is empty: ${filename}`,
+              })
           )
             return;
         } else {
@@ -84,8 +76,8 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
             emit({
               status: "failed",
               error: new DataError(
-                `Storage required for referenced files exceeds remaining FigShare quota (${remainingQuota} bytes). You will only see this error once per spreadsheet because it considers all the files in all rows.`,
-                "QuotaExceededError",
+                  `Storage required for referenced files exceeds remaining FigShare quota (${remainingQuota} bytes). You will only see this error once per spreadsheet because it considers all the files in all rows.`,
+                  "QuotaExceededError",
               ),
             });
             return; // Always stop on quota errors because every subsequent file will be invalid
@@ -95,18 +87,18 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         const kind =
-          err instanceof DOMException && err.name === "NotFoundError"
-            ? "FileNotFound"
-            : "FileAccessError";
+            err instanceof DOMException && err.name === "NotFoundError"
+                ? "FileNotFound"
+                : "FileAccessError";
 
         if (
-          emit({
-            status: "in_progress",
-            error: new DataError(
-              `Problem accessing "${filename}": ${message}`,
-              kind,
-            ),
-          })
+            emit({
+              status: "in_progress",
+              error: new DataError(
+                  `Problem accessing "${filename}": ${message}`,
+                  kind,
+              ),
+            })
         )
           return;
         all_ok = false;
@@ -114,9 +106,9 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
     }
 
     emit(
-      all_ok
-        ? { status: "success", details: "File check completed" }
-        : { status: "failed" },
+        all_ok
+            ? { status: "success", details: "File check completed" }
+            : { status: "failed" },
     );
   },
 };
