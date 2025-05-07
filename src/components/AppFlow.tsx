@@ -28,7 +28,7 @@ type StepStatus = Record<StepKey, boolean>;
 export default function AppFlow() {
     const [activeStep, setActiveStep] = useState(0);
     const [completedSteps, setCompletedSteps] = useState<Partial<StepStatus>>({});
-    const {user} = useAuth();
+    const {user, impersonationTarget} = useAuth();
     const {group} = useGroup();
     const {file, parserContext} = useInputData();
 
@@ -58,15 +58,15 @@ export default function AppFlow() {
                 markStepComplete(0)
                 setActiveStep(1);
             }} openByDefault={activeStep === 0}/>
-            <Impersonation openByDefault={activeStep === 1} onSelect={() => setActiveStep(2)} />
-            <GroupPicker openByDefault={activeStep === 2} onSelect={() => setActiveStep(3)} />
-            <SelectRootDirectoryStep openByDefault={activeStep === 3} onSuccess={() => setActiveStep(4)} />
-            <InputDataStep key={`InputDataStep-${group?.id}`} openByDefault={activeStep === 4} onSuccess={() => setActiveStep(5)} />
-            <ResolveDuplicatesStep key={`ResolveDuplicatesStep-${group?.id}`} openByDefault={activeStep === 5} onSuccess={() => {
+            <Impersonation key={`Impersonation-${user?.id}`} openByDefault={activeStep === 1} onSelect={() => setActiveStep(2)} />
+            <GroupPicker key={`GroupPicker-${impersonationTarget?.id ?? user?.id}`} openByDefault={activeStep === 2} onSelect={() => setActiveStep(3)} />
+            <SelectRootDirectoryStep key={`SelectRootDir-${impersonationTarget?.id ?? user?.id}`} openByDefault={activeStep === 3} onSuccess={() => setActiveStep(4)} />
+            <InputDataStep key={`InputDataStep-${impersonationTarget?.id ?? user?.id}-${group?.id}`} openByDefault={activeStep === 4} onSuccess={() => setActiveStep(5)} />
+            <ResolveDuplicatesStep key={`ResolveDuplicatesStep-${impersonationTarget?.id ?? user?.id}-${group?.id}`} openByDefault={activeStep === 5} onSuccess={() => {
                 markStepComplete(5)
                 setActiveStep(6)
             }} />
-            <UploadStep key={`UploadStep-${group?.id}`} openByDefault={activeStep === 6} />
+            <UploadStep key={`UploadStep-${impersonationTarget?.id ?? user?.id}-${group?.id}`} openByDefault={activeStep === 6} />
         </div>
     );
 }
