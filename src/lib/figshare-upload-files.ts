@@ -86,7 +86,7 @@ export async function uploadFiles({
     );
 
     const uploadUrl = uploadInit.location;
-    console.log("uploadInit", uploadInit);
+    console.log({uploadInit, uploadUrl});
 
     const uploadLocation = await fsFetch<FigshareInitiateUpload>(uploadUrl);
 
@@ -117,7 +117,7 @@ export async function uploadFiles({
 
     // Step 3: Complete upload
     await fsFetch(
-      `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadInit.id}`,
+      `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadLocation.id}`,
       { method: "POST" },
     );
     status.figshareStatus = "completed";

@@ -536,6 +536,17 @@ export const figshareHandlers = [
     return HttpResponse.json(paginatedArticles)
   }),
 
+  http.get('https://api.figshare.com/v2/articles', ({request}) => {
+    // Simulate pagination
+    const url = new URL(request.url);
+    const offset = Number(url.searchParams.get('offset')) || 0;
+    const limit = Number(url.searchParams.get('limit')) || 10;
+    const groupId = Number(url.searchParams.get('group_id'));
+    const groupArticles = articles.filter(article => article.group_id === groupId);
+    const paginatedArticles = groupArticles.slice(offset, offset + limit);
+    return HttpResponse.json(paginatedArticles)
+  }),
+
   http.post('https://api.figshare.com/v2/account/articles', async ({request}) => {
     const body = (await request.json()) as Partial<FigshareArticle>;
     if (!body?.title) return HttpResponse.json({message: "Title is required"}, {status: 400})

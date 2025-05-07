@@ -46,6 +46,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       })
           .then(setFields)
           .catch(e => setErrors([...errors, e])),
+      // unpublished articles (limited to the current user)
       fsFetchPaginated<FigshareArticle>(
           "https://api.figshare.com/v2/account/articles",
           (page: FigshareArticle[]) => {
@@ -54,6 +55,15 @@ export function GroupProvider({ children }: { children: ReactNode }) {
             if (filtered.length > 0) {
               setArticles(prev => [...(prev || []), ...filtered]);
             }
+          }
+      )
+          .catch(e => setErrors([...errors, e])),
+      // published articles
+      fsFetchPaginated<FigshareArticle>(
+          `https://api.figshare.com/v2/articles?group_id=${group?.id}`,
+          (page: FigshareArticle[]) => {
+              if (page.length === 0) return;
+              setArticles(prev => [...(prev || []), ...page]);
           }
       )
           .catch(e => setErrors([...errors, e])),
