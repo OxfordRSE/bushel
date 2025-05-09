@@ -4,6 +4,7 @@ import {
   categoryCountCheck,
   CategoryCountCheckContext,
 } from "@/lib/checks/row/check_category_count";
+import type {ZodError} from "zod";
 import {
   keywordCountCheck,
   KeywordCountCheckContext,
@@ -243,14 +244,17 @@ export class DataRowParser {
               }
               const field = this.fields.find((f) => f.name === header);
               if (!field) return null;
-              if (this.input_data[i + 1] === undefined) {
-                return [header, null];
-              }
               const input = String(
-                  normalizeExcelCell(this.input_data[i + 1] as ExcelCell),
+                  normalizeExcelCell(this.input_data[i + 1] as ExcelCell) ?? "",
               ).trim(); // ExcelJS uses 1-indexed column numbers
               let value: ParsedCellContentType = input;
-              if (field.field_type === "JSON") {
+              if (field.is_mandatory && input === "") {
+                throw new DataError(
+                    `Missing value for mandatory field ${header}`,
+                    "InvalidInputData",
+                );
+              }
+              if (field.field_type === "JSON" && input !== "") {
                 let v: unknown;
                 try {
                   v = JSON.parse(value);
@@ -287,8 +291,10 @@ export class DataRowParser {
                 try {
                   value = field.internal_settings.schema.parse(value);
                 } catch (e) {
+                  const err = e as ZodError;
+                  const message = err.issues.map(i => i.message).join(". ");
                   throw new DataError(
-                      `Invalid JSON for ${header}: ${(e as Error).message}`,
+                      `Invalid JSON for ${header}: ${message}`,
                       "InvalidInputData",
                       e,
                   );
