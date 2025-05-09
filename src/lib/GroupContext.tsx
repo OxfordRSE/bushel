@@ -1,10 +1,9 @@
 'use client';
 
-import {createContext, useContext, useState, ReactNode, useEffect} from 'react';
+import {createContext, useContext, useState, ReactNode, useEffect, useMemo} from 'react';
 import type {FigshareGroup, FigshareCustomField, FigshareArticle, FigshareItemType} from '@/lib/types/figshare-api';
 import {useAuth} from "@/lib/AuthContext";
 import {useInfiniteQuery, useQuery} from "@tanstack/react-query";
-import {expandPages} from "@/lib/utils";
 
 interface GroupContextType {
   group: FigshareGroup | null;
@@ -66,13 +65,18 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     enabled: !!group,
   });
 
+  const combinedArticles = useMemo(() => {
+    const userArticles = user_articles.data?.pages.flat() || [];
+    const publicArticles = public_articles.data?.pages.flat() || [];
+
+    return [...new Set([...userArticles, ...publicArticles])];
+  }, [user_articles.data, public_articles.data]);
+
   return (
       <GroupContext.Provider value={{
         group,
         fields: fields.data ?? null,
-        articles: user_articles.data?.pages.length || public_articles.data?.pages.length
-            ? [...(expandPages(user_articles.data?.pages) ?? []), ...(expandPages(public_articles.data?.pages) ?? [])]
-            : null,
+        articles: combinedArticles.length > 0? combinedArticles : null,
         setGroup,
         groupItemTypes: item_types.data ?? null,
       }}>

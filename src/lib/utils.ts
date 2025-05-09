@@ -144,7 +144,3 @@ export const toFigshareColumnName = (name: string, allowed_names: string[] = [])
     }
     return fuzzyCoerce(clean, allowed_names, false)
 }
-
-export const expandPages = <T>(pages: T[][] = []): T[] => pages.reduce(
-    (acc, page) => acc.concat(page), []
-)

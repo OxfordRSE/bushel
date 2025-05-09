@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/AuthContext';
-import { useEffect, useState } from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import { FigshareUser } from '@/lib/types/figshare-api';
 import StepPanel from '@/components/steps/StepPanel';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {UserX} from "lucide-react";
 import {clsx} from "clsx";
-import {expandPages} from "@/lib/utils";
 import {useInfiniteQuery} from "@tanstack/react-query";
 
 const EMAIL_REGEX = /^\w+@\w+\.\w+$/;
@@ -58,8 +57,10 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
         .catch(() => setEmailMatch(null));
   }, [fetch, search, token]);
 
+  const allUsersFlat = useMemo(() => allUsers?.pages.flat() ?? [], [allUsers?.pages]);
+
   const filtered = search
-      ? expandPages(allUsers?.pages).filter(u => {
+      ? allUsersFlat.filter(u => {
             if (searchMode === 'name') {
               return u.first_name.toLowerCase().includes(search.toLowerCase()) ||
                   u.last_name.toLowerCase().includes(search.toLowerCase())
@@ -68,7 +69,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
             }
           }
       )
-      : expandPages(allUsers?.pages);
+      : allUsersFlat;
 
   const displayUsers = emailMatch
       ? [emailMatch, ...filtered.filter(u => u.id !== emailMatch.id)]
