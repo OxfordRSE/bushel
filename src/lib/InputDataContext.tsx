@@ -199,8 +199,10 @@ async function extractRowsFromSheet({
   const all_data = worksheet.getSheetValues();
   if (all_data.length < 3) throw new Error('No data found in Excel file.');
 
+  const lastRowIndex = all_data.findLastIndex(r => r?.length);
+
   return {
-    rows: all_data.slice(2),
+    rows: all_data.slice(2, lastRowIndex === -1? undefined : lastRowIndex + 1),
     colNameMap,
     droppedColumns: excelColumnNames.filter(h => !fieldNames.includes(h))
   };
@@ -259,6 +261,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const reset = useCallback((clearParserContext = false) => {
     halt();
     setReady(field_queries_loaded);
+    fileChecks.current = [];
     setRowChecksCompleted(false);
     if (clearParserContext)
       setParserContext({
@@ -388,7 +391,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
 
   // Start file-level checks when all rows are parsed
   useEffect(() => {
-    if (rowChecksCompleted && fileChecks.current.length === 0) {
+    if (rowChecksCompleted && fileChecks.current.length === 0 && rows.length > 0) {
       const data = Object.fromEntries(rows.map(r => {
         const parser = parsersRef.current.find(p => p.id === r.id);
         if (!parser) throw new Error(`No parser with id ${r.id}`);
@@ -403,10 +406,8 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         new CheckQuota(data, (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0))
       ];
       fileChecks.current.forEach(c => c.check());
-    } else {
-      fileChecks.current = [];
     }
-  }, [rowChecksCompleted, rows, targetUser?.quota]);
+  }, [rowChecksCompleted, rows, targetUser?.quota, targetUser?.used_quota]);
 
   return (
       <InputDataContext.Provider value={{
