@@ -3,7 +3,8 @@
 import {createContext, useContext, useState, ReactNode, useEffect} from 'react';
 import type {FigshareGroup, FigshareCustomField, FigshareArticle, FigshareItemType} from '@/lib/types/figshare-api';
 import {useAuth} from "@/lib/AuthContext";
-import {useQuery} from "@tanstack/react-query";
+import {useInfiniteQuery, useQuery} from "@tanstack/react-query";
+import {expandPages} from "@/lib/utils";
 
 interface GroupContextType {
   group: FigshareGroup | null;
@@ -16,10 +17,10 @@ interface GroupContextType {
 const GroupContext = createContext<GroupContextType | undefined>(undefined);
 
 export function GroupProvider({ children }: { children: ReactNode }) {
-  const {token, fetch, impersonationTarget } = useAuth();
+  const {token, fetch, targetUser } = useAuth();
   const [group, setGroup] = useState<FigshareGroup | null>(null);
 
-  useEffect(() => setGroup(null), [token, impersonationTarget?.id]);
+  useEffect(() => setGroup(null), [token, targetUser?.id]);
 
   const fields = useQuery<FigshareCustomField[]>({
     queryKey: ['fields', group?.id, token],
@@ -29,19 +30,30 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     enabled: !!group,
   });
 
-  const user_articles = useQuery<FigshareArticle[]>({
+  const limit = 1000;
+  const user_articles = useInfiniteQuery<FigshareArticle[]>({
     queryKey: ['my_articles', group?.id, token],
-    queryFn: async () => {
-      return await fetch<FigshareArticle[]>(`https://api.figshare.com/v2/account/articles`)
+    queryFn: async ({pageParam}) => {
+      return await fetch<FigshareArticle[]>(`https://api.figshare.com/v2/account/articles?page=${pageParam ?? 1}&page_size=${limit}`)
           .then(res => res.filter(article => article.group_id === group?.id));
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => {
+      if (lastPage.length < limit) return undefined;
+      return pages.length + 1;
     },
     enabled: !!group,
   });
 
-  const public_articles = useQuery<FigshareArticle[]>({
-    queryKey: ['private_articles', group?.id, token],
-    queryFn: async () => {
-      return await fetch<FigshareArticle[]>(`https://api.figshare.com/v2/articles?group_id=${group?.id}`);
+  const public_articles = useInfiniteQuery<FigshareArticle[]>({
+    queryKey: ['group_articles', group?.id, token],
+    queryFn: async ({pageParam}) => {
+      return await fetch<FigshareArticle[]>(`https://api.figshare.com/v2/articles?page=${pageParam ?? 1}&page_size=${limit}&group_id=${group?.id}&institution=${targetUser?.institution_id}`);
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => {
+      if (lastPage.length < limit) return undefined;
+      return pages.length + 1;
     },
     enabled: !!group,
   });
@@ -58,8 +70,8 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       <GroupContext.Provider value={{
         group,
         fields: fields.data ?? null,
-        articles: user_articles.data || public_articles.data
-            ? [...(user_articles.data ?? []), ...(public_articles.data ?? [])]
+        articles: user_articles.data?.pages.length || public_articles.data?.pages.length
+            ? [...(expandPages(user_articles.data?.pages) ?? []), ...(expandPages(public_articles.data?.pages) ?? [])]
             : null,
         setGroup,
         groupItemTypes: item_types.data ?? null,

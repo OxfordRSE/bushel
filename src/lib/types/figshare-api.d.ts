@@ -20,6 +20,7 @@ export interface FigshareUser {
   is_active: boolean;
   quota: number;
   used_quota: number;
+  institution_id: number;
 }
 
 export interface FigshareGroup {

@@ -62,7 +62,8 @@ const users: FigshareUser[] = [
     orcid_id: null,
     is_active: true,
     quota: 100000,
-    used_quota: 1000
+    used_quota: 1000,
+    institution_id: 1,
   },
   {
     id: 2,
@@ -73,7 +74,8 @@ const users: FigshareUser[] = [
     orcid_id: null,
     is_active: true,
     quota: 100000,
-    used_quota: 1000
+    used_quota: 1000,
+    institution_id: 1,
   },
   {
     id: 3,
@@ -84,7 +86,8 @@ const users: FigshareUser[] = [
     orcid_id: null,
     is_active: true,
     quota: 100000,
-    used_quota: 1000
+    used_quota: 1000,
+    institution_id: 1,
   },
   {
     id: 4,
@@ -95,7 +98,8 @@ const users: FigshareUser[] = [
     orcid_id: null,
     is_active: true,
     quota: 100000,
-    used_quota: 100000
+    used_quota: 100000,
+    institution_id: 1,
   },
   ...((n) => {
     return Array.from({ length: n }, (_, i) => ({
@@ -108,6 +112,7 @@ const users: FigshareUser[] = [
       is_active: Math.random() > 0.05,
       quota: 100000,
       used_quota: Math.min(100000, Math.floor(Math.random() * 130000)),
+      institution_id: 1,
     }))
   })(10000)
 ]
@@ -530,20 +535,20 @@ export const figshareHandlers = [
   http.get('https://api.figshare.com/v2/account/articles', ({ request }) => {
     // Simulate pagination
     const url = new URL(request.url);
-    const offset = Number(url.searchParams.get('offset')) || 0;
-    const limit = Number(url.searchParams.get('limit')) || 10;
-    const paginatedArticles = articles.slice(offset, offset + limit);
+    const offset = Math.max(Number(url.searchParams.get('page')), 1);
+    const limit = Number(url.searchParams.get('page_size')) || 10;
+    const paginatedArticles = articles.slice(limit * (offset - 1), offset * limit);
     return HttpResponse.json(paginatedArticles)
   }),
 
   http.get('https://api.figshare.com/v2/articles', ({request}) => {
     // Simulate pagination
     const url = new URL(request.url);
-    const offset = Number(url.searchParams.get('offset')) || 0;
-    const limit = Number(url.searchParams.get('limit')) || 10;
+    const offset = Math.max(Number(url.searchParams.get('page')), 1);
+    const limit = Number(url.searchParams.get('page_size')) || 10;
     const groupId = Number(url.searchParams.get('group_id'));
     const groupArticles = articles.filter(article => article.group_id === groupId);
-    const paginatedArticles = groupArticles.slice(offset, offset + limit);
+    const paginatedArticles = groupArticles.slice(limit * (offset - 1), offset * limit);
     return HttpResponse.json(paginatedArticles)
   }),
 
