@@ -108,7 +108,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
         throw new Error(`Row ${r.id} has invalid categories: ${(data.categories as string[]).filter(c => !institutionCategories.some(x => x.title === c)).join(',')}`);
       }
       const license = institutionLicenses.find(x => x.name === data?.license)?.value;
-      if (license === undefined) {
+      if (institutionLicenses.length > 0 && license === undefined) {
         throw new Error(`Row ${r.id} has invalid license: ${data?.license}`);
       }
       const customFields = fields?.map(f => ({name: f.name, value: String(data[f.name])}))
