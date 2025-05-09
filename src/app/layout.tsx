@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
     title: "Bushel",
     description: "A tool for uploading data to FigShare",
+    icons: {
+        icon: '/logo.png',
+    },
 };
 
 export default function RootLayout({
@@ -24,12 +27,12 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
-        <body
-            className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
-            <Providers>{children}</Providers>
-        </body>
-        </html>
+      <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+      <Providers>{children}</Providers>
+      </body>
+      </html>
     );
 }
