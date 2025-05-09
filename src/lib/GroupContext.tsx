@@ -47,7 +47,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const public_articles = useInfiniteQuery<FigshareArticle[]>({
     queryKey: ['group_articles', group?.id, token],
     queryFn: async ({pageParam}) => {
-      return await fetch<FigshareArticle[]>(`https://api.figshare.com/v2/articles?page=${pageParam ?? 1}&page_size=${limit}&group_id=${group?.id}&institution=${targetUser?.institution_id}`);
+      return await fetch<FigshareArticle[]>(`https://api.figshare.com/v2/articles?page=${pageParam ?? 1}&page_size=${limit}&group=${group?.id}&institution=${targetUser?.institution_id}`);
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) => {
