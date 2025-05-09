@@ -1,6 +1,6 @@
 'use client';
 
-import {createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef,} from 'react';
+import {createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState,} from 'react';
 import {useInputData} from './InputDataContext';
 import {DataRowId, DataRowStatus} from './DataRowParser';
 import {uploadFiles, UploadFileStatus} from "@/lib/figshare-upload-files";
@@ -49,7 +49,9 @@ interface UploadDataContextType {
   cancelAll: () => void;
   getSummaryCSV: () => string;
   exactMatches: string[];
-  fuzzyWarnings: FuzzyMatch[]
+  fuzzyWarnings: FuzzyMatch[];
+  duplicatesAcknowledged: boolean;
+  setDuplicatesAcknowledged: (acknowledged: boolean) => void;
 }
 
 const UploadDataContext = createContext<UploadDataContextType | undefined>(undefined);
@@ -60,6 +62,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   const {institutionLicenses, institutionCategories, fetch} = useAuth();
   const { rows: parsedRows, getParser, completed: inputDataParsingComplete, parserContext } = useInputData();
   const articleTitles = useMemo(() => articles?.map(article => article.title) || [], [articles]);
+  const [duplicatesAcknowledged, setDuplicatesAcknowledged] = useState(false);
 
   // Utilities for fuzzy matching titles
   const exactMatches = useMemo(() => {
@@ -295,7 +298,9 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     fuzzyWarnings: fuzzyWarnings.map(w => ({
       ...w,
       title: parsedRows.find(r => r.excelRowNumber === w.excelRowNumber)?.title,
-    })).filter(Boolean) as (Pick<UploadRowStateWithTitle,"title"|"excelRowNumber"> & { articleTitle: string })[]
+    })).filter(Boolean) as (Pick<UploadRowStateWithTitle,"title"|"excelRowNumber"> & { articleTitle: string })[],
+    duplicatesAcknowledged,
+    setDuplicatesAcknowledged,
   };
 
   return <UploadDataContext.Provider value={ctx}>{children}</UploadDataContext.Provider>;

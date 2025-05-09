@@ -20,6 +20,8 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
     cancelRow,
     getSummaryCSV,
     exactMatches,
+    duplicatesAcknowledged,
+    fuzzyWarnings
   } = useUploadData();
 
   const all_rows_valid = useMemo(() => {
@@ -58,6 +60,19 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
         openByDefault={openByDefault}
     >
       <p>All data must be successfully parsed before it can be uploaded to FigShare.</p>
+    </StepPanel>
+  }
+
+  if (!duplicatesAcknowledged && (exactMatches.length || fuzzyWarnings.length)) {
+    return <StepPanel
+        title="Upload to FigShare"
+        iconOverride={<Ban className="text-gray-400 w-5 h-5" />}
+        openByDefault={openByDefault}
+    >
+      <p>
+        There are duplicates or near-duplicates of existing FigShare articles.
+        Please check the previous step and acknowledge that you understand the implications of uploading these articles.
+      </p>
     </StepPanel>
   }
 
@@ -130,8 +145,8 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
                                           <TooltipContent side="top">
                                             {
                                               isActive && fp.error
-                                                ? <>{fp.error}</>
-                                                : <>Uploading <strong>{fp.name}</strong><br />(part {fp.partNumber + 1}/{fp.partCount})</>
+                                                  ? <>{fp.error}</>
+                                                  : <>Uploading <strong>{fp.name}</strong><br />(part {fp.partNumber + 1}/{fp.partCount})</>
                                             }
                                             {!isActive && fp.name}
                                           </TooltipContent>

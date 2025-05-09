@@ -15,17 +15,16 @@ export default function ResolveDuplicatesStep({
     onSuccess?: () => void;
 }) {
     const { rows} = useInputData();
-    const { exactMatches, fuzzyWarnings } = useUploadData();
-    const [done, setDone] = useState(false);
+    const { exactMatches, fuzzyWarnings, duplicatesAcknowledged, setDuplicatesAcknowledged } = useUploadData();
 
     useEffect(() => {
-        setDone(false);
-    }, [rows]);
+        setDuplicatesAcknowledged(false);
+    }, [rows, setDuplicatesAcknowledged]);
 
     let summary: Parameters<typeof StepPanel>[0]["title"] = <></>;
     let status: Parameters<typeof StepPanel>[0]["status"] = 'default';
     let iconOverride: Parameters<typeof StepPanel>[0]["iconOverride"]  = undefined;
-    if (done) {
+    if (duplicatesAcknowledged) {
         summary = `Skipping ${exactMatches.length} existing articles`;
         status = 'complete';
     } else if (!rows.length) {
@@ -55,14 +54,18 @@ export default function ResolveDuplicatesStep({
                     <ul className="space-y-2 overflow-y-auto max-h-[20rem]">
                         {exactMatches.map((title, i) => (
                             <li key={i} className="flex items-center gap-2 ps-4">
-                              {title}
+                                {title}
                             </li>
                         ))}
                     </ul>
-                    <Button onClick={() => {
-                        setDone(true);
-                        onSuccess?.();
-                    }} className="mt-4 cursor-pointer">Yes, skip {exactMatches.length} existing records</Button>
+                    <Button
+                        onClick={() => {
+                            setDuplicatesAcknowledged(true);
+                            onSuccess?.();
+                        }}
+                        className="mt-4 cursor-pointer"
+                        disabled={duplicatesAcknowledged}
+                    >Yes, skip {exactMatches.length} existing records</Button>
                 </>
             ) : (
                 <p className="text-sm text-muted-foreground">No duplicate titles found.</p>
