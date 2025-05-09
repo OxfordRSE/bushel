@@ -591,15 +591,35 @@ export const figshareHandlers = [
   http.post('https://api.figshare.com/v2/account/articles/:articleId/files', async () => {
     const randomId = Math.floor(Math.random() * 1000000);
     return HttpResponse.json({
-          location: `https://upload.figshare.com/upload/${randomId}`,
-          id: randomId,
+          location: `https://api.figshare.com/v2/upload/${randomId}`
         },
         { status: 201 }
     );
   }),
 
   // Fetch parts info (GET /upload/:uploadToken)
-  http.get('https://upload.figshare.com/upload/:uploadToken', async (req) => {
+  http.get('https://api.figshare.com/v2/upload/:uploadToken', async (req) => {
+    return HttpResponse.json({
+          upload_token: req.params.uploadToken,
+          upload_url: `https://upload.figshare.com/${req.params.uploadToken}`,
+          status: 'PENDING',
+          preview_state: 'PENDING',
+          viewer_type: 'none',
+          is_attached_to_public_version: false,
+          id: Math.floor(Math.random() * 1000000),
+          name: 'mockfile.txt',
+          size: 123456,
+          is_link_only: false,
+          download_url: "mock_value",
+          supplied_md5: "mock_value",
+          computed_md5: "mock_value",
+          mimetype: "mock_value",
+        }
+    );
+  }),
+
+  // Fetch parts info (GET /upload/:uploadToken)
+  http.get('https://upload.figshare.com/:uploadToken', async (req) => {
     return HttpResponse.json({
       token: req.params.uploadToken,
       name: 'mockfile.txt',

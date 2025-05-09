@@ -14,6 +14,7 @@ export type UploadFileStatus = {
   name?: string;
   partNumber: number;
   partCount: number;
+  error?: string;
 };
 
 type UploadFilesOptions = {
@@ -44,7 +45,7 @@ export async function uploadFiles({
                                     files,
                                     rootDir,
                                     articleId,
-    patchedFetch,
+                                    patchedFetch,
                                     onProgress,
                                   }: UploadFilesOptions): Promise<void> {
   // Check actual API use support
@@ -65,75 +66,84 @@ export async function uploadFiles({
       partNumber: 0,
       partCount: 0,
     };
-    if (onProgress?.({ ...status })) return;
-    const fileHandle = await rootDir.getFileHandle(files[fileIndex]);
-    const file = await fileHandle.getFile();
-    status.md5 = await calculateFileMd5(file);
-    status.name = file.name;
+    try {
+      if (onProgress?.({ ...status })) return;
+      const fileHandle = await rootDir.getFileHandle(files[fileIndex]);
+      const file = await fileHandle.getFile();
+      status.md5 = await calculateFileMd5(file);
+      status.name = file.name;
 
-    // Step 1: Initiate upload
-    const uploadInit = await patchedFetch<FigshareCreateFile>(
-        `https://api.figshare.com/v2/account/articles/${articleId}/files`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+      // Step 1: Initiate upload
+      const uploadInit = await patchedFetch<FigshareCreateFile>(
+          `https://api.figshare.com/v2/account/articles/${articleId}/files`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: {
+              name: file.name,
+              size: file.size,
+              md5: status.md5,
+            },
           },
-          body: {
-            name: file.name,
-            size: file.size,
-            md5: status.md5,
-          },
-        },
-    );
+      );
 
-    const uploadUrl = uploadInit.location;
+      const uploadUrl = uploadInit.location;
 
-    const uploadLocation = await patchedFetch<FigshareInitiateUpload>(uploadUrl);
+      const uploadLocation = await patchedFetch<FigshareInitiateUpload>(uploadUrl);
 
-    console.log({uploadInit, uploadLocation});
+      console.log({uploadInit, uploadLocation});
 
-    // Step 2: Get parts list from FigShare
-    const partsInfo = await patchedFetch<FigshareUploadStart>(uploadLocation.upload_url);
-    status.figshareStatus = partsInfo.status;
-    status.partCount = partsInfo.parts?.length ?? 0;
-    const parts =
-        partsInfo.parts?.map((p: unknown) => p as FigshareFilePart) ?? [];
-    if (onProgress?.({ ...status })) return;
+      // Step 2: Get parts list from FigShare
+      const partsInfo = await patchedFetch<FigshareUploadStart>(uploadLocation.upload_url);
+      status.figshareStatus = partsInfo.status;
+      status.partCount = partsInfo.parts?.length ?? 0;
+      const parts =
+          partsInfo.parts?.map((p: unknown) => p as FigshareFilePart) ?? [];
+      if (onProgress?.({ ...status })) return;
 
-    // Step 3: Upload parts
-    for (let partIndex = 0; partIndex < parts.length; partIndex++) {
-      const part = parts[partIndex];
+      // Step 3: Upload parts
+      for (let partIndex = 0; partIndex < parts.length; partIndex++) {
+        const part = parts[partIndex];
 
-      const partUrl = `${uploadLocation.upload_url}/${part.partNo}`;
+        const partUrl = `${uploadLocation.upload_url}/${part.partNo}`;
 
-      // Get byte range and slice file
-      const blobPart = file.slice(part.startOffset, part.endOffset + 1);
+        // Get byte range and slice file
+        const blobPart = file.slice(part.startOffset, part.endOffset + 1);
 
-      // Upload part
-      await fetch(partUrl, {
-        method: "PUT",
-        body: blobPart,
-      });
-
-      if (onProgress?.({ ...status, partNumber: part.partNo })) return;
-    }
-
-    // Step 3: Complete upload
-    await patchedFetch<Response>(
-        `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadLocation.id}`,
-        { method: "POST" },
-        {
-          returnRawResponse: true
-        }
-    )
-        .then(async (res) => {
-          if (!res.ok) {
-            console.error(await res.text());
-            throw new Error(`Error: ${res.status} ${res.statusText}`);
-          }
+        // Upload part
+        await fetch(partUrl, {
+          method: "PUT",
+          body: blobPart,
         });
-    status.figshareStatus = "completed";
-    if (onProgress?.({ ...status })) return;
+
+        if (onProgress?.({ ...status, partNumber: part.partNo })) return;
+      }
+
+      // Step 3: Complete upload
+      await patchedFetch<Response>(
+          `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadLocation.id}`,
+          { method: "POST" },
+          {
+            returnRawResponse: true
+          }
+      )
+          .then(async (res) => {
+            if (!res.ok) {
+              console.error(await res.text());
+              throw new Error(`Error: ${res.status} ${res.statusText}`);
+            }
+          });
+      status.figshareStatus = "completed";
+      if (onProgress?.({ ...status })) return;
+    } catch (e) {
+      console.error(e);
+      onProgress?.({
+        ...status,
+        error: String(e),
+      });
+      return;
+    }
   }
 }

@@ -98,14 +98,16 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
                     ) : (<TableRow key={row.id}>
                           <TableCell>{row.excelRowNumber}</TableCell>
                           <TableCell>{row.title}</TableCell>
-                          <TableCell className="capitalize">{row.status}</TableCell>
+                          <TableCell className="capitalize">{row.fileProgress?.error? 'Upload error' : row.status}</TableCell>
                           <TableCell>
                             {
                               row.fileProgress?.totalFiles
                                   ? (<div className="flex gap-1 items-center">
                                     {Array.from({ length: row.fileProgress.totalFiles }).map((_, i) => {
-                                      const fp = row.fileProgress!;
-                                      const isDone = i < fp.fileIndex;
+                                      const fp = row.fileProgress;
+                                      if (!fp) return <></>;
+
+                                      const isDone = i < fp.fileIndex || i === fp.fileIndex && fp.figshareStatus === "completed";
                                       const isActive = i === fp.fileIndex;
 
                                       return <TooltipProvider key={i}>
@@ -117,15 +119,20 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
                                                   isDone
                                                       ? 'text-green-600'
                                                       : isActive
-                                                          ? 'text-blue-600 animate-pulse'
+                                                          ? fp.error
+                                                              ? 'text-red-500'
+                                                              : 'text-blue-600 animate-pulse'
                                                           : 'text-gray-300'
                                                 }
                                                 size={16}
                                             />
                                           </TooltipTrigger>
                                           <TooltipContent side="top">
-                                            {isActive && <>Uploading <strong>{fp.name}</strong><br />
-                                              (part {fp.partNumber + 1}/{fp.partCount})</>}
+                                            {
+                                              isActive && fp.error
+                                                ? <>{fp.error}</>
+                                                : <>Uploading <strong>{fp.name}</strong><br />(part {fp.partNumber + 1}/{fp.partCount})</>
+                                            }
                                             {!isActive && fp.name}
                                           </TooltipContent>
                                         </Tooltip>
