@@ -4,7 +4,6 @@ import { DataRowCheck, DataError } from "@/lib/DataRowParser";
 // Values with _ are private values updated by the check to enable cross-row tallies
 export type FileRefCheckContext = {
   rootDir?: FileSystemDirectoryHandle;
-  userQuotaRemaining?: number;
 };
 
 export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
@@ -12,8 +11,7 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
   async run(parser, emit, context) {
     const files = parser.data?.files;
     const rootDir = context.rootDir as FileSystemDirectoryHandle | undefined;
-    const remainingQuota = context.userQuotaRemaining ?? 0;
-    let quotaUsed = Number(parser.internalContext.quotaUsed) ?? 0;
+    const quotaUsed = Number(parser.internalContext.quotaUsed) ?? 0;
 
     if (!Array.isArray(files)) {
       emit({ status: "skipped", details: "No files to check" });
@@ -71,18 +69,7 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
           )
             return;
         } else {
-          quotaUsed += file.size;
-          if (quotaUsed > remainingQuota) {
-            emit({
-              status: "failed",
-              error: new DataError(
-                  `Storage required for referenced files exceeds remaining FigShare quota (${remainingQuota} bytes). You will only see this error once per spreadsheet because it considers all the files in all rows.`,
-                  "QuotaExceededError",
-              ),
-            });
-            return; // Always stop on quota errors because every subsequent file will be invalid
-          }
-          parser.setInternalContextEntry("quotaUsed", quotaUsed); // Update the quota used in context for subsequent checks on other rows
+          parser.setInternalContextEntry("quotaUsed", quotaUsed + file.size); // Usage checking is done once after all files are checked
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

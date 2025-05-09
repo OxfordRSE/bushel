@@ -1,6 +1,6 @@
 import {createContext, useCallback, useContext, useEffect, useMemo, useRef} from 'react';
 import {type Updater, useImmer} from 'use-immer';
-import {ColumnNameMapping, DataRowId, DataRowParser, DataRowStatus, ParserContext} from './DataRowParser';
+import {ColumnNameMapping, DataError, DataRowId, DataRowParser, DataRowStatus, ParserContext} from './DataRowParser';
 import ExcelJS from 'exceljs';
 import {useGroup} from "@/lib/GroupContext";
 import {useAuth} from "@/lib/AuthContext";
@@ -8,6 +8,21 @@ import {FigshareCategory, FigshareCustomField, FigshareItemType, FigshareLicense
 import {toFigshareColumnName} from "@/lib/utils";
 import {AuthorDetailsSchema, DescriptionSchema, FundingCreateSchema, RelatedMaterialSchema} from "@/lib/types/schemas";
 import { type ZodTypeAny  } from 'zod';
+import {CheckTitlesAreUnique} from "@/lib/checks/file/check_titles_are_unique";
+import {CheckQuota} from "@/lib/checks/file/check_quota";
+
+export type FileCheckStatusString = 'checking' | 'valid' | 'error';
+
+interface FileCheckStatus {
+  name: string;
+  status: FileCheckStatusString;
+  errors: DataError[];
+  warnings: string[];
+}
+
+export interface FileCheck extends FileCheckStatus {
+  check: () => void;
+}
 
 interface InputDataContextValue {
   rows: DataRowStatus[];
@@ -16,6 +31,7 @@ interface InputDataContextValue {
   // Ready to receive a file
   ready: boolean;
   file: File | null;
+  fileChecks: FileCheckStatus[];
   // Set the file to parse. If `clearCurrent` is true, it will reset the current file and rows.
   // If `clearCurrent` is false, it will throw an error if a file is already set.
   setFile: (file: File, clearCurrent: boolean) => void;
@@ -29,6 +45,7 @@ interface InputDataContextValue {
   loadWarnings: string[];
   working: boolean;
   completed: boolean;
+  rowChecksCompleted: boolean;
   getParser: (id: DataRowStatus["id"]) => DataRowParser;
   resetKey: number;
 }
@@ -200,26 +217,19 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const [loadErrors, setLoadErrors] = useImmer<string[]>([]);
   const [loadWarnings, setLoadWarnings] = useImmer<string[]>([]);
   const [working, setWorking] = useImmer<boolean>(false);
-  const [completed, setCompleted] = useImmer<boolean>(false);
+  const [rowChecksCompleted, setRowChecksCompleted] = useImmer<boolean>(false);
   const [file, _setFile] = useImmer<File | null>(null);
   const [ready, setReady] = useImmer<boolean>(false);
   const {institutionCategories, institutionLicenses, targetUser} = useAuth();
   const {fields, groupItemTypes} = useGroup();
   const [parserContext, setParserContext] = useImmer<ParserContext>({
     rootDir: undefined,
-    userQuotaRemaining: (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0),
     minCategoryCount: 1,
     minKeywordCount: 1,
     maxKeywordCount: 100,
   });
+  const fileChecks = useRef<FileCheck[]>([]);
   const [resetKey, setResetKey] = useImmer<number>(0);
-
-  useEffect(() => {
-    setParserContext((draft) => {
-      draft.userQuotaRemaining = (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0);
-      return draft;
-    })
-  }, [setParserContext, targetUser]);
 
   const field_queries_loaded = useMemo(
       () => !!(institutionCategories && institutionLicenses && fields && groupItemTypes),
@@ -249,11 +259,10 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const reset = useCallback((clearParserContext = false) => {
     halt();
     setReady(field_queries_loaded);
-    setCompleted(false);
+    setRowChecksCompleted(false);
     if (clearParserContext)
       setParserContext({
         rootDir: undefined,
-        userQuotaRemaining: (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0),
         minCategoryCount: 1,
         minKeywordCount: 1,
         maxKeywordCount: 100,
@@ -263,10 +272,10 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     setLoadErrors([]);
     setLoadWarnings([]);
   }, [
-      _setFile,
+    _setFile,
     field_queries_loaded,
     halt,
-    setCompleted,
+    setRowChecksCompleted,
     setLoadErrors,
     setLoadWarnings,
     setParserContext,
@@ -353,7 +362,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         const allFinished = parsersRef.current.every(p => p.complete);
         if (allFinished) {
           setWorking(false);
-          setCompleted(true);
+          setRowChecksCompleted(true);
           shouldTerminate = true;
         }
         return shouldTerminate; // allow continuation
@@ -368,7 +377,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     setRows(newRows);
     parsersRef.current = newParsers;
     newParsers.forEach(p => p.runAllChecks());
-  }, [debug, fieldList, file, parserContext, ready, reset, setCompleted, setLoadErrors, setLoadWarnings, setRows, setWorking]);
+  }, [debug, fieldList, file, parserContext, ready, reset, setRowChecksCompleted, setLoadErrors, setLoadWarnings, setRows, setWorking]);
 
   const getParser = useCallback((id: DataRowStatus["id"]) => {
     const parser = parsersRef.current.find(p => p.id === id);
@@ -377,17 +386,41 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     return parser;
   }, []);
 
+  // Start file-level checks when all rows are parsed
+  useEffect(() => {
+    if (rowChecksCompleted && fileChecks.current.length === 0) {
+      const data = Object.fromEntries(rows.map(r => {
+        const parser = parsersRef.current.find(p => p.id === r.id);
+        if (!parser) throw new Error(`No parser with id ${r.id}`);
+        return [
+          r.excelRowNumber,
+          parser
+        ]
+      }));
+
+      fileChecks.current = [
+        new CheckTitlesAreUnique(data),
+        new CheckQuota(data, (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0))
+      ];
+      fileChecks.current.forEach(c => c.check());
+    } else {
+      fileChecks.current = [];
+    }
+  }, [rowChecksCompleted, rows, targetUser?.quota]);
+
   return (
       <InputDataContext.Provider value={{
         rows,
         ready,
         file, setFile,
+        fileChecks: fileChecks.current,
         halt,
         reset,
         loadErrors,
         loadWarnings,
         working,
-        completed,
+        completed: fileChecks.current.every(s => ["valid", "error"].includes(s.status)),
+        rowChecksCompleted,
         parserContext, setParserContext,
         check,
         getParser,

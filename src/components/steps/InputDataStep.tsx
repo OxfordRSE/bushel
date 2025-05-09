@@ -7,6 +7,7 @@ import StepPanel from '@/components/steps/StepPanel';
 import {AlertTriangle, CheckSquare, ChevronDown, ChevronUp, CogIcon, InfoIcon, StopCircle} from "lucide-react";
 import {DataRowStatus} from "@/lib/DataRowParser";
 import {useGroup} from "@/lib/GroupContext";
+import {useAuth} from "@/lib/AuthContext";
 
 type RowsSummary = Record<DataRowStatus["status"], number> & {
     total: number;
@@ -20,7 +21,23 @@ type RowsSummary = Record<DataRowStatus["status"], number> & {
 
 export default function InputDataStep({ openByDefault = true, onSuccess }: { openByDefault?: boolean, onSuccess?: () => void }) {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const { rows, file, setFile, halt, reset, check, ready, loadErrors, loadWarnings, working, setParserContext, parserContext, resetKey } = useInputData();
+    const {
+        rows,
+        file,
+        setFile,
+        halt,
+        reset,
+        check,
+        ready,
+        loadErrors,
+        loadWarnings,
+        working,
+        setParserContext,
+        parserContext,
+        resetKey,
+        fileChecks
+    } = useInputData();
+    const {targetUser} = useAuth();
     const {group} = useGroup();
     const [maxWarnings, setMaxWarnings] = useState(20);
     const [maxErrors, setMaxErrors] = useState(20);
@@ -86,14 +103,25 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
         summary = <>Upload an Excel file</>;
         status = 'default';
     } else if (rowsSummary.valid === rows.length) {
-        if (rowsSummary.warnings > 0)
+        if (fileChecks.some(c => c.status === "error")) {
             summary = <span className={"flex items-center"}>
-                All {rows.length} rows successfully checked (<AlertTriangle className="inline-block w-4 h-4 text-yellow-600 me-1" />
-                {rowsSummary.warnings} warnings in {rowsSummary.warning} rows)
+                Rows are incompatible with one another.
             </span>;
-        else
-            summary = <>All {rows.length} rows successfully checked</>;
-        status = 'complete';
+        } else if (fileChecks.some(c => c.status === "checking")) {
+            summary = <span className="flex items-center">
+                All {rows.length} rows checked. Checking inter-row compatibility <CogIcon className={"animate-spin text-blue-600 w-5 h-5"}/>
+            </span>;
+        } else {
+            if (rowsSummary.warnings > 0)
+                summary = <span className={"flex items-center"}>
+                All {rows.length} rows successfully checked (<AlertTriangle
+                    className="inline-block w-4 h-4 text-yellow-600 me-1"/>
+                    {rowsSummary.warnings} warnings in {rowsSummary.warning} rows)
+            </span>;
+            else
+                summary = <>All {rows.length} rows successfully checked</>;
+            status = 'complete';
+        }
     } else if (rowsSummary.errors >= maxErrors || rowsSummary.warnings >= maxWarnings) {
         summary = <span className="flex items-center">
             Checking halted at max {rowsSummary.errors >= maxErrors? 'errors' : 'warnings'}
@@ -191,7 +219,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                                     <Input
                                         type="text"
                                         disabled
-                                        value={parserContext.userQuotaRemaining}
+                                        value={(targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0)}
                                         className="w-20"
                                     />
                                 </Label>
@@ -298,6 +326,35 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                                     r.warnings.map((w, j) => (
                                         <li key={`${i}-${j}`}>
                                             <strong>Row {r.excelRowNumber}:</strong> {w}
+                                        </li>
+                                    ))
+                                )}
+                        </ul>
+                    </div>
+                )}
+
+                {fileChecks.some(c => c.status === "error") && (
+                    <div className="bg-red-100 text-red-800 text-sm p-3 rounded">
+                        <ul>
+                            {fileChecks.filter(c => c.status === "error")
+                                .map((c, i) =>
+                                    c.errors.map((error, j) => (
+                                        <li key={`${i}-${j}`}>
+                                            {error.message} ({error.kind})
+                                        </li>
+                                    )))}
+                        </ul>
+                    </div>
+                )}
+
+                {fileChecks.some(c => c.warnings.length > 0) && (
+                    <div className="bg-yellow-100 text-yellow-800 text-sm p-3 rounded">
+                        <ul>
+                            {fileChecks.filter(c => c.warnings.length > 0)
+                                .map((c, i) =>
+                                    c.warnings.map((w, j) => (
+                                        <li key={`${i}-${j}`}>
+                                            {w}
                                         </li>
                                     ))
                                 )}

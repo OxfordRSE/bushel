@@ -1,14 +1,14 @@
-import { fileRefCheck, FileRefCheckContext } from "@/lib/checks/check_files";
+import { fileRefCheck, FileRefCheckContext } from "@/lib/checks/row/check_files";
 import { Field } from "@/lib/InputDataContext";
 import {
   categoryCountCheck,
   CategoryCountCheckContext,
-} from "@/lib/checks/check_category_count";
+} from "@/lib/checks/row/check_category_count";
 import {
   keywordCountCheck,
   KeywordCountCheckContext,
-} from "@/lib/checks/check_keyword_count";
-import { selectValuesCheck } from "@/lib/checks/check_select_values";
+} from "@/lib/checks/row/check_keyword_count";
+import { selectValuesCheck } from "@/lib/checks/row/check_select_values";
 import {
   AuthorDetails,
   FundingCreate,
@@ -92,7 +92,7 @@ export interface DataRowCheck<T extends DataRowCheckContext = never> {
 
 type AllowedCellJSON = FundingCreate | RelatedMaterial | AuthorDetails;
 
-type ParsedCellContentType = string | string[] | AllowedCellJSON[] | Date;
+export type ParsedCellContentType = string | string[] | AllowedCellJSON[] | Date;
 
 function isParsedCellContentType(v: unknown, _root = true): v is ParsedCellContentType {
   if (_root)
