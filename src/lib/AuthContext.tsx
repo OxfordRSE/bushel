@@ -3,7 +3,7 @@
 import {createContext, useCallback, useContext, useEffect, useState} from 'react';
 import {loginWithFigShare} from '@/lib/auth';
 import {FigshareCategory, FigshareLicense, FigshareUser} from "@/lib/types/figshare-api";
-import {useQuery, useQueryClient, UseQueryResult} from "@tanstack/react-query";
+import {useQuery, useQueryClient} from "@tanstack/react-query";
 
 export type AuthState = {
   token: string | null;
@@ -18,7 +18,7 @@ export type AuthState = {
   // impersonationTarget if set, otherwise user
   targetUser: FigshareUser | null;
   // Run a fetch query on FigShare with token, impersonation, and caching
-  fetch: <T>(url: string | URL, options?: Omit<RequestInit, "body"> & {body?: object}) => Promise<T>;
+  fetch: <T>(url: string | URL, options?: Omit<RequestInit, "body"> & {body?: object}, internal_options?: {returnRawResponse: boolean}) => Promise<T>;
 };
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -80,7 +80,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [token, impersonationTarget]);
 
-  const patchedFetch = useCallback(async <T,>(url: string | URL, options?: Omit<RequestInit, "body"> & {body?: object}): Promise<T> => {
+  const patchedFetch = useCallback(async <T,>(
+      url: string | URL,
+      options?: Omit<RequestInit, "body"> & {body?: object},
+      internal_options?: {returnRawResponse: boolean}
+  ): Promise<T> => {
     let query;
     if (options?.method === "POST") {
       const {body, headers} = patchPOST(options?.body, options?.headers);
@@ -89,20 +93,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const {url: patchedUrl, headers} = patchGET(url, options?.headers);
       query = fetch(patchedUrl, {...options as RequestInit, headers});
     }
-    return await query
-        .then(r => {
-          if (!r.ok) {
-            let error;
-            try {
-              error = r.json();
-            } catch {
-              throw new Error(`Error: ${r.status} ${r.statusText}`);
-            }
-            throw new Error(`Error: ${r.status} ${r.statusText} ${error}`);
-          }
-          return r;
-        })
-        .then(r => r.json());
+    const response = await query;
+    if (internal_options?.returnRawResponse) {
+      return response as unknown as T;
+    }
+    if (!response.ok) {
+      let error;
+      try {
+        error = response.json();
+      } catch {
+        throw new Error(`Error: ${response.status} ${response.statusText}`);
+      }
+      throw new Error(`Error: ${response.status} ${response.statusText} ${error}`);
+    }
+    return response.json();
   }, [patchGET, patchPOST]);
 
   const clear = useCallback(async () => {

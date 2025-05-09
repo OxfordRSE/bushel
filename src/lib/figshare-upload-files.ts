@@ -120,10 +120,19 @@ export async function uploadFiles({
     }
 
     // Step 3: Complete upload
-    await patchedFetch(
+    await patchedFetch<Response>(
         `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadLocation.id}`,
         { method: "POST" },
-    );
+        {
+          returnRawResponse: true
+        }
+    )
+        .then(async (res) => {
+          if (!res.ok) {
+            console.error(await res.text());
+            throw new Error(`Error: ${res.status} ${res.statusText}`);
+          }
+        });
     status.figshareStatus = "completed";
     if (onProgress?.({ ...status })) return;
   }
