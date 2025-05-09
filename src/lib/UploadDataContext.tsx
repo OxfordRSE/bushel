@@ -78,7 +78,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   }, [cleanArticleTitles]);
 
   const fuzzyWarnings = useMemo(() => {
-    return parsedRows.map(r => {
+    const mapped = parsedRows.map(r => {
       if (!r.title)
         return null;
       const fuzzy = fuzzyCoerce(r.title, articleTitles, true, articleTitleRegex);
@@ -91,8 +91,8 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
         articleTitle: fuzzy,
       };
     })
-        .filter(Boolean)
-        .filter(match => !exactMatches.includes(match!.title)) as FuzzyMatch[];
+    const filtered = mapped.filter(Boolean) as FuzzyMatch[];
+    return filtered.filter(match => !exactMatches.includes(match.title ?? ""));
   }, [parsedRows, articleTitles, articleTitleRegex, cleanArticleTitles, exactMatches]);
 
   // Extract figshare upload data once parsing is complete
@@ -102,20 +102,21 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
       const data = getParser(r.id).data;
       if (!data) throw new Error(`Row ${r.id} has no data`);
       const categories = (data?.categories as string[])
-          .map(c => institutionCategories!.find(x => x.title === c)?.source_id)
+          .map(c => institutionCategories.find(x => x.title === c)?.source_id)
           .filter(c => c !== undefined);
       if (categories.some(c => c === undefined)) {
-        throw new Error(`Row ${r.id} has invalid categories: ${(data.categories as string[]).filter(c => !institutionCategories!.some(x => x.title === c)).join(',')}`);
+        throw new Error(`Row ${r.id} has invalid categories: ${(data.categories as string[]).filter(c => !institutionCategories.some(x => x.title === c)).join(',')}`);
       }
-      const license = institutionLicenses!.find(x => x.name === data?.license)?.value;
+      const license = institutionLicenses.find(x => x.name === data?.license)?.value;
       if (license === undefined) {
         throw new Error(`Row ${r.id} has invalid license: ${data?.license}`);
       }
-      const customFields = fields!.map(f => ({name: f.name, value: String(data[f.name])}))
+      const customFields = fields?.map(f => ({name: f.name, value: String(data[f.name])}))
           .filter(x => x.value !== undefined && x.value !== null);
 
       return {
         id: r.id,
+        // data!. used for mandatory fields which are guaranteed to be present by DataRowParser
         data: {
           title: data!.title as string,
           description: data!.description as string,

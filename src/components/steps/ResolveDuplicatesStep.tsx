@@ -73,9 +73,9 @@ export default function ResolveDuplicatesStep({
                     <p className="text-sm text-yellow-600 font-medium">Close matches:</p>
                     <ul className="text-sm text-muted-foreground pl-4 list-disc">
                         {fuzzyWarnings.map(match => (
-                            <li key={match!.excelRowNumber}>
-                                Row {match!.excelRowNumber} &#34;<strong>{match!.title}</strong>&#34;
-                                is similar to &#34;<strong>{match!.articleTitle}</strong>&#34;
+                            <li key={match.excelRowNumber}>
+                                Row {match.excelRowNumber} &#34;<strong>{match.title}</strong>&#34;
+                                is similar to &#34;<strong>{match.articleTitle}</strong>&#34;
                             </li>
                         ))}
                     </ul>
