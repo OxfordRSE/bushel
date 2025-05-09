@@ -10,7 +10,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800">
       <header className="w-full px-4 py-3 bg-white shadow">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-semibold">📦 Bushel</h1>
+          <h1 className="text-xl font-semibold flex items-center">
+              <img src="/logo.png" className="h-[2rem] me-2"  alt="logo"/> Bushel
+          </h1>
           {isLoggedIn && (
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <span>👤 {user?.first_name ?? 'Unknown'} {user?.last_name ?? 'User'}</span>
