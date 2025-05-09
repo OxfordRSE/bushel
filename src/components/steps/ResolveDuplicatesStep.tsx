@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useState} from 'react';
+import {useEffect} from 'react';
 import { Button } from '@/components/ui/button';
 import StepPanel from '@/components/steps/StepPanel';
 import {useInputData} from "@/lib/InputDataContext";
