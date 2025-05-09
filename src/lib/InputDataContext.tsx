@@ -6,7 +6,7 @@ import {useGroup} from "@/lib/GroupContext";
 import {useAuth} from "@/lib/AuthContext";
 import {FigshareCategory, FigshareCustomField, FigshareItemType, FigshareLicense} from "@/lib/types/figshare-api";
 import {toFigshareColumnName} from "@/lib/utils";
-import {AuthorDetailsSchema, FundingCreateSchema, RelatedMaterialSchema} from "@/lib/types/schemas";
+import {AuthorDetailsSchema, DescriptionSchema, FundingCreateSchema, RelatedMaterialSchema} from "@/lib/types/schemas";
 import { type ZodTypeAny  } from 'zod';
 
 interface InputDataContextValue {
@@ -108,14 +108,14 @@ function combineFields({
     {
       name: "description",
       field_type: "text",
-      internal_settings: {},
+      internal_settings: {schema: DescriptionSchema},
       is_mandatory: true
     },
     {
       name: "authors",
       field_type: "JSON",
       is_mandatory: true,
-      internal_settings: {is_array: true, schema: AuthorDetailsSchema.array()},
+      internal_settings: {schema: AuthorDetailsSchema},
     },
     // Optional fields with set definitions
     {

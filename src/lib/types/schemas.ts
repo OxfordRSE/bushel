@@ -7,7 +7,7 @@ export const AuthorDetailsSchema = z.object({
   last_name: z.string().optional(),
   email: z.string().optional(),
   orcid_id: z.string().optional(),
-});
+}).array().nonempty();
 
 export const RelatedMaterialSchema = z.object({
   id: z.number().optional(),
@@ -39,3 +39,5 @@ export const FundingCreateSchema = z.object({
   id: z.number().optional(),
   title: z.string().optional(),
 });
+
+export const DescriptionSchema = z.string().min(4).max(20000);

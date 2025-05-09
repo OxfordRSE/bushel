@@ -14,13 +14,14 @@ import {
   FundingCreate,
   RelatedMaterial,
 } from "@/lib/types/figshare-api";
+import {AuthorDetailsSchema, FundingCreateSchema, RelatedMaterialSchema} from "@/lib/types/schemas";
 
 export type CheckStatus =
-  | "pending"
-  | "in_progress"
-  | "success"
-  | "skipped"
-  | "failed";
+    | "pending"
+    | "in_progress"
+    | "success"
+    | "skipped"
+    | "failed";
 
 export interface CheckResult {
   status: CheckStatus;
@@ -61,16 +62,16 @@ export class DataError extends Error {
 }
 
 export type ParserContext = FileRefCheckContext &
-  CategoryCountCheckContext &
-  KeywordCountCheckContext;
+    CategoryCountCheckContext &
+    KeywordCountCheckContext;
 
 /**
  * The update function is called by the parser to patch a DataRowStatus.
  * If it returns `true`, it signals that the parser should terminate.
  */
 export type UpdateStatusCallback = (
-  id: DataRowId,
-  patch: Partial<DataRowStatus>,
+    id: DataRowId,
+    patch: Partial<DataRowStatus>,
 ) => boolean | void;
 
 type DataRowCheckContext = Record<string, unknown>;
@@ -83,9 +84,9 @@ type DataRowCheckContext = Record<string, unknown>;
 export interface DataRowCheck<T extends DataRowCheckContext = never> {
   name: string;
   run(
-    parser: DataRowParser,
-    emit: (result: CheckResult) => boolean | void,
-    context: T,
+      parser: DataRowParser,
+      emit: (result: CheckResult) => boolean | void,
+      context: T,
   ): Promise<void>;
 }
 
@@ -93,22 +94,31 @@ type AllowedCellJSON = FundingCreate | RelatedMaterial | AuthorDetails;
 
 type ParsedCellContentType = string | string[] | AllowedCellJSON[] | Date;
 
+function isParsedCellContentType(v: unknown, _root = true): v is ParsedCellContentType {
+  if (_root)
+    return v instanceof Date || typeof v === "string" || (Array.isArray(v) && v.every((v) => isParsedCellContentType(v, false)));
+  return typeof v === "string"
+      || AuthorDetailsSchema.safeParse(v).success
+      || FundingCreateSchema.safeParse(v).success
+      || RelatedMaterialSchema.safeParse(v).success;
+}
+
 type ExcelCell =
-  | string
-  | number
-  | boolean
-  | Date
-  | null
-  | undefined
-  | { text?: string; hyperlink?: string };
+    | string
+    | number
+    | boolean
+    | Date
+    | null
+    | undefined
+    | { text?: string; hyperlink?: string };
 
 function normalizeExcelCell(value: ExcelCell): string | number | null | Date {
   if (value == null) return null;
 
   if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    value instanceof Date
+      typeof value === "string" ||
+      typeof value === "number" ||
+      value instanceof Date
   ) {
     return value;
   }
@@ -146,12 +156,12 @@ export class DataRowParser {
   private _internalContext: DataRowCheckContext = {};
 
   constructor(
-    public readonly input_data: unknown[],
-    public readonly columnNameMapping: ColumnNameMapping,
-    public readonly id: DataRowId,
-    private readonly update: UpdateStatusCallback,
-    public readonly fields: Field[],
-    public readonly context: ParserContext,
+      public readonly input_data: unknown[],
+      public readonly columnNameMapping: ColumnNameMapping,
+      public readonly id: DataRowId,
+      private readonly update: UpdateStatusCallback,
+      public readonly fields: Field[],
+      public readonly context: ParserContext,
   ) {}
 
   terminate() {
@@ -180,11 +190,11 @@ export class DataRowParser {
       this.maybeUpdate({
         warnings: [
           ...Object.entries(this.checks).map(([check, results]) =>
-            results.reduce(
-              (acc, r) =>
-                r.warning ? [...acc, `[${check}] ${r.warning}`] : acc,
-              [] as string[],
-            ),
+              results.reduce(
+                  (acc, r) =>
+                      r.warning ? [...acc, `[${check}] ${r.warning}`] : acc,
+                  [] as string[],
+              ),
           ),
         ].flat(),
       });
@@ -193,10 +203,10 @@ export class DataRowParser {
         status: "error",
         errors: [
           ...Object.values(this.checks).map((results) =>
-            results.reduce(
-              (acc, r) => (r.error ? [...acc, r.error] : acc),
-              [] as DataError[],
-            ),
+              results.reduce(
+                  (acc, r) => (r.error ? [...acc, r.error] : acc),
+                  [] as DataError[],
+              ),
           ),
         ].flat(),
       });
@@ -204,78 +214,89 @@ export class DataRowParser {
   };
 
   private report =
-    (label: string) =>
-    (result: CheckResult): boolean | void => {
-      if (this.terminated) return true;
-      this.checks[label].push(result);
-      if (result.warning || result.error) {
-        return this.emitToUI(result); // result updates are not propagated directly to UI
-      }
-    };
+      (label: string) =>
+          (result: CheckResult): boolean | void => {
+            if (this.terminated) return true;
+            this.checks[label].push(result);
+            if (result.warning || result.error) {
+              return this.emitToUI(result); // result updates are not propagated directly to UI
+            }
+          };
 
   // Expand the sparse array of input data into a full object by comparing vs headers
   private async expand_row_data() {
     if (this.input_data.length > this.columnNameMapping.length) {
       throw new DataError(
-        "More cell values than headers (row too long)",
-        "InvalidInputData",
+          "More cell values than headers (row too long)",
+          "InvalidInputData",
       );
     }
     let title = "";
     this.data = Object.fromEntries(
-      this.columnNameMapping
-        .map((mapping) => mapping[1])
-        .slice(1) // Skip the first header, which is empty because ExcelJS uses 1-indexed column numbers
-        .map((header, i) => {
-          // Side effect to detect the title
-          if (header === "title") {
-            title = this.input_data[i + 1] as string;
-          }
-          const field = this.fields.find((f) => f.name === header);
-          if (!field) return null;
-          if (this.input_data[i + 1] === undefined) {
-            return [header, null];
-          }
-          const input = String(
-            normalizeExcelCell(this.input_data[i + 1] as ExcelCell),
-          ).trim(); // ExcelJS uses 1-indexed column numbers
-          let value: ParsedCellContentType = input;
-          if (field.field_type === "JSON") {
-            let v: unknown;
-            try {
-              v = JSON.parse(value);
-            } catch (e) {
-              throw new DataError(
-                `Cannot parse JSON for ${header}: ${value} [${e}]`,
-                "InvalidInputData",
-                e,
-              );
-            }
-            if (!field.internal_settings.schema) {
-              throw new DataError(
-                `Field ${header} is JSON but no schema is defined`,
-                "InvalidInputData",
-              );
-            }
-            if (field.internal_settings.is_array && !Array.isArray(v)) v = [v];
-            try {
-              value = field.internal_settings.schema.parse(v);
-            } catch (e) {
-              throw new DataError(
-                `Invalid JSON for ${header}: ${(e as Error).message}`,
-                "InvalidInputData",
-                e,
-              );
-            }
-          } else if (field.internal_settings.is_array) {
-            value = input
-              .split(/;\s*/)
-              .map((v) => v.trim())
-              .filter((v) => v.length > 0);
-          }
-          return [header, value];
-        })
-        .filter((entry) => entry !== null) as [string, ParsedCellContentType][],
+        this.columnNameMapping
+            .map((mapping) => mapping[1])
+            .slice(1) // Skip the first header, which is empty because ExcelJS uses 1-indexed column numbers
+            .map((header, i) => {
+              // Side effect to detect the title
+              if (header === "title") {
+                title = this.input_data[i + 1] as string;
+              }
+              const field = this.fields.find((f) => f.name === header);
+              if (!field) return null;
+              if (this.input_data[i + 1] === undefined) {
+                return [header, null];
+              }
+              const input = String(
+                  normalizeExcelCell(this.input_data[i + 1] as ExcelCell),
+              ).trim(); // ExcelJS uses 1-indexed column numbers
+              let value: ParsedCellContentType = input;
+              if (field.field_type === "JSON") {
+                let v: unknown;
+                try {
+                  v = JSON.parse(value);
+                } catch (e) {
+                  throw new DataError(
+                      `Cannot parse JSON for ${header}: ${value} [${e}]`,
+                      "InvalidInputData",
+                      e,
+                  );
+                }
+                if (!field.internal_settings.schema) {
+                  throw new DataError(
+                      `Field ${header} is JSON but no schema is defined`,
+                      "InvalidInputData",
+                  );
+                }
+                v =  (field.internal_settings.is_array && !Array.isArray(v))
+                    ? [v]
+                    : v;
+                if (!isParsedCellContentType(v)) {
+                  throw new DataError(
+                      `Deserialized JSON for ${header} is not a recognised type (${typeof v}: ${v})`,
+                      "InvalidInputData",
+                  );
+                }
+                value = v;
+              } else if (field.internal_settings.is_array) {
+                value = input
+                    .split(/;\s*/)
+                    .map((v) => v.trim())
+                    .filter((v) => v.length > 0);
+              }
+              if (field.internal_settings.schema) {
+                try {
+                  value = field.internal_settings.schema.parse(value);
+                } catch (e) {
+                  throw new DataError(
+                      `Invalid JSON for ${header}: ${(e as Error).message}`,
+                      "InvalidInputData",
+                      e,
+                  );
+                }
+              }
+              return [header, value];
+            })
+            .filter((entry) => entry !== null) as [string, ParsedCellContentType][],
     );
     if (!title) {
       throw new DataError("No title found in row", "MissingTitle");
@@ -290,9 +311,9 @@ export class DataRowParser {
   async runCheck(check: DataRowCheck<ParserContext>): Promise<void> {
     if (this.terminated) return;
     if (
-      this.report(check.name)({
-        status: "pending",
-      })
+        this.report(check.name)({
+          status: "pending",
+        })
     )
       return;
     await check.run(this, this.report(check.name), this.context);
@@ -318,14 +339,14 @@ export class DataRowParser {
       });
     } catch (e) {
       const error =
-        e instanceof DataError
-          ? e
-          : new DataError(
-              e instanceof Error
-                ? `Failed to read row data: ${e.message}`
-                : String(e),
-              "InvalidInputData",
-            );
+          e instanceof DataError
+              ? e
+              : new DataError(
+                  e instanceof Error
+                      ? `Failed to read row data: ${e.message}`
+                      : String(e),
+                  "InvalidInputData",
+              );
       this.report("Read data")({
         status: "failed",
         error,
@@ -345,14 +366,14 @@ export class DataRowParser {
         await this.runCheck(check);
       } catch (e) {
         const error =
-          e instanceof DataError
-            ? e
-            : new DataError(
-                e instanceof Error
-                  ? `Failed to run check: ${e.message}`
-                  : String(e),
-                "CheckError",
-              );
+            e instanceof DataError
+                ? e
+                : new DataError(
+                    e instanceof Error
+                        ? `Failed to run check: ${e.message}`
+                        : String(e),
+                    "CheckError",
+                );
         this.report(check.name)({
           status: "failed",
           error,
@@ -361,14 +382,14 @@ export class DataRowParser {
     }
 
     const hasErrors = Object.values(this.checks).some((results) =>
-      results.some((c) => c.status === "failed"),
+        results.some((c) => c.status === "failed"),
     );
     this.maybeUpdate({ status: hasErrors ? "error" : "valid" });
   }
 
   public get complete() {
     return Object.values(this.checks).every((results) =>
-      results.some((c) => c.status !== "pending" && c.status !== "in_progress"),
+        results.some((c) => c.status !== "pending" && c.status !== "in_progress"),
     );
   }
 }
