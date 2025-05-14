@@ -132,7 +132,7 @@ function combineFields({
       name: "authors",
       field_type: "JSON",
       is_mandatory: true,
-      internal_settings: {schema: AuthorDetailsSchema},
+      internal_settings: {schema: AuthorDetailsSchema, is_array: true},
     },
     // Optional fields with set definitions
     {
@@ -143,7 +143,7 @@ function combineFields({
     {
       name: "funding",
       field_type: "JSON",
-      internal_settings: {is_array: true, schema: FundingCreateSchema.array()},
+      internal_settings: {is_array: true, schema: FundingCreateSchema},
     },
     {
       name: "references",
@@ -153,7 +153,7 @@ function combineFields({
     {
       name: "related_materials",
       field_type: "JSON",
-      internal_settings: {is_array: true, schema: RelatedMaterialSchema.array()}
+      internal_settings: {is_array: true, schema: RelatedMaterialSchema}
     },
     ...convertedCustomFields
   ];
