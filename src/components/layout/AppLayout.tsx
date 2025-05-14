@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/lib/AuthContext';
 import React from "react";
+import Image from "next/image";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, isLoggedIn } = useAuth();
@@ -11,7 +12,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <header className="w-full px-4 py-3 bg-white shadow">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <h1 className="text-xl font-semibold flex items-center">
-              <img src="/logo.png" className="h-[2rem] me-2"  alt="logo"/> Bushel
+              <Image src="/logo.png" className="h-[2rem] w-[2rem] me-2" height={1024} width={1024}  alt="logo"/> Bushel
           </h1>
           {isLoggedIn && (
             <div className="flex items-center gap-4 text-sm text-gray-600">
