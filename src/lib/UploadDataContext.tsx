@@ -19,7 +19,7 @@ type UploadStatus = 'pending' | 'uploading' | 'created' | 'completed' | 'error' 
 
 export interface UploadRowData {
   id: DataRowId;
-  data: FigshareArticleCreate;
+  data?: FigshareArticleCreate;
   files: string[];
 }
 
@@ -102,8 +102,13 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   const uploadData: UploadRowData[] = useMemo(() => {
     if (!inputDataParsingComplete || !group || parsedRows.some(r => r.status !== 'valid')) return [];
     return parsedRows.map((r) => {
-      const data = getParser(r.id).data;
-      if (!data) throw new Error(`Row ${r.id} has no data`);
+      let data;
+      try {
+        data = getParser(r.id).data;
+      } catch {
+        data = null;
+      }
+      if (!data) return { id: r.id, files: [] };
       const categories = (data?.categories as string[])
           .map(c => institutionCategories.find(x => x.title === c)?.source_id)
           .filter(c => c !== undefined);
@@ -173,7 +178,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
 
   const uploadRow = useCallback((id: DataRowId) => {
     const upload_row = uploadData.find(r => r.id === id);
-    if (!upload_row || exactMatches.includes(upload_row.data.title)) return Promise.resolve();
+    if (!upload_row || exactMatches.includes(upload_row.data?.title ?? "")) return Promise.resolve();
     let cancelled = false;
 
     const cancel = () => {

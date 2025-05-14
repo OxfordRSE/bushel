@@ -199,7 +199,7 @@ async function extractRowsFromSheet({
   const all_data = worksheet.getSheetValues();
   const lastRowIndex = all_data.findLastIndex(r => r?.length);
 
-  if (all_data.length < 3 || (lastRowIndex !== -1 && lastRowIndex < 3))
+  if (all_data.length < 3 || (lastRowIndex !== -1 && lastRowIndex < 2))
     throw new Error('No data found in Excel file.');
 
   return {
