@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import StepPanel from '@/components/steps/StepPanel';
 import { useAuth } from '@/lib/AuthContext';
-import { useUploadData } from '@/lib/UploadDataContext';
+import {UploadRowStateWithTitle, useUploadData} from '@/lib/UploadDataContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -55,9 +55,9 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
 
   if (!all_rows_valid) {
     return <StepPanel
-        title="Upload to FigShare"
-        iconOverride={<Ban className="text-gray-400 w-5 h-5" />}
-        openByDefault={openByDefault}
+      title="Upload to FigShare"
+      iconOverride={<Ban className="text-gray-400 w-5 h-5" />}
+      openByDefault={openByDefault}
     >
       <p>All data must be successfully parsed before it can be uploaded to FigShare.</p>
     </StepPanel>
@@ -65,9 +65,9 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
 
   if (!duplicatesAcknowledged && (exactMatches.length || fuzzyWarnings.length)) {
     return <StepPanel
-        title="Upload to FigShare"
-        iconOverride={<Ban className="text-gray-400 w-5 h-5" />}
-        openByDefault={openByDefault}
+      title="Upload to FigShare"
+      iconOverride={<Ban className="text-gray-400 w-5 h-5" />}
+      openByDefault={openByDefault}
     >
       <p>
         There are duplicates or near-duplicates of existing FigShare articles.
@@ -76,124 +76,152 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
     </StepPanel>
   }
 
+  const rowStatus = (row: UploadRowStateWithTitle) => {
+    if (row.fileProgress?.error) {
+      return <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            Upload error
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            {row.fileProgress.error}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>;
+    }
+    if (row.status === 'error') {
+      return <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-red-500">Error</span>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            {row.error?.message}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>;
+    }
+    return row.status
+  }
+
   return (
-      <StepPanel
-          title={summary.title}
-          status={summary.status}
-          iconOverride={summary.icon}
-          openByDefault={openByDefault}
-      >
-        <div className="space-y-4">
-          <p>
-            Ready to upload <strong>{rows.length}</strong> articles.
-            Please make sure {impersonationTarget?.first_name ?? 'you'} have enough headroom to create them.
-          </p>
+    <StepPanel
+      title={summary.title}
+      status={summary.status}
+      iconOverride={summary.icon}
+      openByDefault={openByDefault}
+    >
+      <div className="space-y-4">
+        <p>
+          Ready to upload <strong>{rows.length}</strong> articles.
+          Please make sure {impersonationTarget?.first_name ?? 'you'} have enough headroom to create them.
+        </p>
 
-          <div className="overflow-x-auto border rounded-md bg-white shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Upload status</TableHead>
-                  <TableHead>File upload status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map(row =>
-                    exactMatches.includes(row.title ?? "") ? (
-                        <TableRow key={row.id} className="opacity-25 bg-gray-50">
-                          <TableCell>{row.excelRowNumber}</TableCell>
-                          <TableCell>{row.title}</TableCell>
-                          <TableCell colSpan={4}>Skipped</TableCell>
-                          <TableCell></TableCell>
-                          <TableCell></TableCell>
-                        </TableRow>
-                    ) : (<TableRow key={row.id}>
-                          <TableCell>{row.excelRowNumber}</TableCell>
-                          <TableCell>{row.title}</TableCell>
-                          <TableCell className="capitalize">{row.fileProgress?.error? 'Upload error' : row.status}</TableCell>
-                          <TableCell>
-                            {
-                              row.fileProgress?.totalFiles
-                                  ? (<div className="flex gap-1 items-center">
-                                    {Array.from({ length: row.fileProgress.totalFiles }).map((_, i) => {
-                                      const fp = row.fileProgress;
-                                      if (!fp) return <></>;
+        <div className="overflow-x-auto border rounded-md bg-white shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Upload status</TableHead>
+                <TableHead>File upload status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map(row =>
+                exactMatches.includes(row.title ?? "") ? (
+                  <TableRow key={row.id} className="opacity-25 bg-gray-50">
+                    <TableCell>{row.excelRowNumber}</TableCell>
+                    <TableCell>{row.title}</TableCell>
+                    <TableCell colSpan={4}>Skipped</TableCell>
+                    <TableCell></TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                ) : (<TableRow key={row.id}>
+                    <TableCell>{row.excelRowNumber}</TableCell>
+                    <TableCell>{row.title}</TableCell>
+                    <TableCell className="capitalize">{rowStatus(row)}</TableCell>
+                    <TableCell>
+                      {
+                        row.fileProgress?.totalFiles
+                          ? (<div className="flex gap-1 items-center">
+                            {Array.from({ length: row.fileProgress.totalFiles }).map((_, i) => {
+                              const fp = row.fileProgress;
+                              if (!fp) return <></>;
 
-                                      const isDone = i < fp.fileIndex || i === fp.fileIndex && fp.figshareStatus === "completed";
-                                      const isActive = i === fp.fileIndex;
+                              const isDone = i < fp.fileIndex || i === fp.fileIndex && fp.figshareStatus === "completed";
+                              const isActive = i === fp.fileIndex;
 
-                                      return <TooltipProvider key={i}>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Package
-                                                key={i}
-                                                className={
-                                                  isDone
-                                                      ? 'text-green-600'
-                                                      : isActive
-                                                          ? fp.error
-                                                              ? 'text-red-500'
-                                                              : 'text-blue-600 animate-pulse'
-                                                          : 'text-gray-300'
-                                                }
-                                                size={16}
-                                            />
-                                          </TooltipTrigger>
-                                          <TooltipContent side="top">
-                                            {
-                                              isActive && fp.error
-                                                  ? <>{fp.error}</>
-                                                  : <>Uploading <strong>{fp.name}</strong><br />(part {fp.partNumber + 1}/{fp.partCount})</>
-                                            }
-                                            {!isActive && fp.name}
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    })}
-                                  </div>)
-                                  : <></>
-                            }
+                              return <TooltipProvider key={i}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Package
+                                      key={i}
+                                      className={
+                                        isDone
+                                          ? 'text-green-600'
+                                          : isActive
+                                            ? fp.error
+                                              ? 'text-red-500'
+                                              : 'text-blue-600 animate-pulse'
+                                            : 'text-gray-300'
+                                      }
+                                      size={16}
+                                    />
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    {
+                                      isActive && fp.error
+                                        ? <>{fp.error}</>
+                                        : <>Uploading <strong>{fp.name}</strong><br />(part {fp.partNumber + 1}/{fp.partCount})</>
+                                    }
+                                    {!isActive && fp.name}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            })}
+                          </div>)
+                          : <></>
+                      }
 
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {(row.status === 'uploading' || row.status === 'created') && (
-                                <Button size="sm" variant="destructive" onClick={() => cancelRow(row.id)}>
-                                  Stop
-                                </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                    )
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {(row.status === 'uploading' || row.status === 'created') && (
+                        <Button size="sm" variant="destructive" onClick={() => cancelRow(row.id)}>
+                          Stop
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
-          <div className="flex items-center space-x-2 justify-evenly">
-            <Button onClick={uploadAll} className="w-[75%] cursor-pointer" disabled={overallStatus === "in progress"}>
-              Upload!
-            </Button>
-            <Button
-                onClick={cancelAll}
-                variant="outline"
-                disabled={overallStatus !== 'in progress'}
-                className="w-[20%] cursor-pointer"
-            >
-              Cancel
-            </Button>
-          </div>
-
+        <div className="flex items-center space-x-2 justify-evenly">
+          <Button onClick={uploadAll} className="w-[75%] cursor-pointer" disabled={overallStatus === "in progress"}>
+            Upload!
+          </Button>
           <Button
-              className="w-full cursor-pointer"
-              disabled={overallStatus !== 'complete' && overallStatus !== 'error'}
-              onClick={downloadSummary}
+            onClick={cancelAll}
+            variant="outline"
+            disabled={overallStatus !== 'in progress'}
+            className="w-[20%] cursor-pointer"
           >
-            Download Summary
+            Cancel
           </Button>
         </div>
-      </StepPanel>
+
+        <Button
+          className="w-full cursor-pointer"
+          disabled={overallStatus !== 'complete' && overallStatus !== 'error'}
+          onClick={downloadSummary}
+        >
+          Download Summary
+        </Button>
+      </div>
+    </StepPanel>
   );
 }

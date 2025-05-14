@@ -34,7 +34,7 @@ export interface UploadRowState {
   completedAt?: number;
 }
 
-type UploadRowStateWithTitle = UploadRowState & {
+export type UploadRowStateWithTitle = UploadRowState & {
   title?: string;
 };
 
