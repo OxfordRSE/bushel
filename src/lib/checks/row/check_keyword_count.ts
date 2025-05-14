@@ -28,7 +28,7 @@ export const keywordCountCheck: DataRowCheck<KeywordCountCheckContext> = {
     if (keywords.length > context.maxKeywordCount) {
       emit({
         status: 'failed',
-        error: new DataError(`Too many categories provided. Maximum allowed: ${context.maxKeywordCount}`, 'KeywordCountError')
+        error: new DataError(`Too many keywords provided. Maximum allowed: ${context.maxKeywordCount}`, 'KeywordCountError')
       });
       return;
     }
@@ -36,7 +36,7 @@ export const keywordCountCheck: DataRowCheck<KeywordCountCheckContext> = {
     if (keywords.length < context.minKeywordCount) {
       emit({
         status: 'failed',
-        error: new DataError(`Not enough categories provided. Minimum required: ${context.minKeywordCount}`, 'KeywordCountError')
+        error: new DataError(`Not enough keywords provided. Minimum required: ${context.minKeywordCount}`, 'KeywordCountError')
       });
       return;
     }
