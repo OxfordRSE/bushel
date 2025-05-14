@@ -197,9 +197,10 @@ async function extractRowsFromSheet({
   if (missingHeaders.length > 0)  throw new Error(`Missing mandatory columns: ${missingHeaders.join(', ')}`);
 
   const all_data = worksheet.getSheetValues();
-  if (all_data.length < 3) throw new Error('No data found in Excel file.');
-
   const lastRowIndex = all_data.findLastIndex(r => r?.length);
+
+  if (all_data.length < 3 || (lastRowIndex !== -1 && lastRowIndex < 3))
+    throw new Error('No data found in Excel file.');
 
   return {
     rows: all_data.slice(2, lastRowIndex === -1? undefined : lastRowIndex + 1),
