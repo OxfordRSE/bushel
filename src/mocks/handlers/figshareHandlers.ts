@@ -352,6 +352,30 @@ const categories: FigshareCategory[] = [
     "path": "/450/1024/6534",
     "source_id": "300206",
     "taxonomy_id": 4
+  },
+  {
+    "parent_id": 1,
+    "id": 14,
+    "title": "Archaeology not elsewhere classified",
+    "path": "/450/1024/6535",
+    "source_id": "300207",
+    "taxonomy_id": 4
+  },
+  {
+    "parent_id": 1,
+    "id": 15,
+    "title": "Latin and classical Greek languages",
+    "path": "/450/1024/6536",
+    "source_id": "300208",
+    "taxonomy_id": 4
+  },
+  {
+    "parent_id": 1,
+    "id": 16,
+    "title": "Phonetics and phonology",
+    "path": "/450/1024/6537",
+    "source_id": "300209",
+    "taxonomy_id": 4
   }
 ]
 
