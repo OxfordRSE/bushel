@@ -264,7 +264,7 @@ export default function InputDataStep({ openByDefault = true, onSuccess }: { ope
                 <Button
                     variant="ghost"
                     onClick={() => resetFile()}
-                    disabled={!file}
+                    disabled={!file && (fileInputRef.current?.value ?? "") === ""}
                     className={"cursor-pointer ms-4"}
                 >
                     Clear File
