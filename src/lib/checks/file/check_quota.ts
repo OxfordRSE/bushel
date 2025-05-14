@@ -18,7 +18,7 @@ export class CheckQuota implements FileCheck {
     }
 
     check() {
-        const quotas = Object.values(this.data).map(r => Number(r.internalContext.quotaUsed) ?? 0);
+        const quotas = Object.values(this.data).map(r => Number(r.internalContext.quotaUsed ?? 0));
         const totalQuota = quotas.reduce((acc, val) => acc + val, 0);
         if (totalQuota <= this.quota) {
             this.status = "valid";

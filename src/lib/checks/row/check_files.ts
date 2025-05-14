@@ -11,7 +11,7 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
   async run(parser, emit, context) {
     const files = parser.data?.files;
     const rootDir = context.rootDir as FileSystemDirectoryHandle | undefined;
-    const quotaUsed = Number(parser.internalContext.quotaUsed) ?? 0;
+    const quotaUsed = Number(parser.internalContext.quotaUsed ?? 0);
 
     if (!Array.isArray(files)) {
       emit({ status: "skipped", details: "No files to check" });
