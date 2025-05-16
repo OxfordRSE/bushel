@@ -100,11 +100,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (!response.ok) {
       let error;
       try {
-        error = response.json();
+        error = await response.json();
       } catch {
-        throw new Error(`Error: ${response.status} ${response.statusText}`);
+        throw new Error(`${response.status} ${response.statusText}`);
       }
-      throw new Error(`Error: ${response.status} ${response.statusText} ${error}`);
+      if (error?.message || error?.error || error?.detail) {
+        throw new Error(error.message ?? error.error ?? error.detail);
+      }
+      throw new Error(`${response.status} ${response.statusText}`);
     }
     return response.json();
   }, [patchGET, patchPOST]);

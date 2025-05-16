@@ -1,12 +1,12 @@
 'use client';
 
-import { useAuth } from '@/lib/AuthContext';
+import {useAuth} from '@/lib/AuthContext';
 import {useEffect, useMemo, useState} from 'react';
-import { FigshareUser } from '@/lib/types/figshare-api';
+import {FigshareUser} from '@/lib/types/figshare-api';
 import StepPanel from '@/components/steps/StepPanel';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import {Input} from '@/components/ui/input';
+import {Button} from '@/components/ui/button';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {UserX} from "lucide-react";
 import {clsx} from "clsx";
 import {useInfiniteQuery} from "@tanstack/react-query";
@@ -31,7 +31,12 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
   const {data: allUsers, isFetching, hasNextPage, fetchNextPage, error } = useInfiniteQuery({
     queryKey: ['users', token, reloadKey],
     queryFn: async ({ pageParam }) => {
-      return await fetch<FigshareUser[]>(`https://api.figshare.com/v2/account/institution/accounts?page_size=${limit}&page=${pageParam}`);
+      try {
+        return await fetch<FigshareUser[]>(`https://api.figshare.com/v2/account/institution/accounts?page_size=${limit}&page=${pageParam}`);
+      } catch(e) {
+        console.error(e);
+        throw new Error('Error fetching users');
+      }
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) => {

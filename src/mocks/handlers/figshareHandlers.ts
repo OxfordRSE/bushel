@@ -52,7 +52,7 @@ function articleTitle(n: number): string {
 
 
 // Shared mock data
-const users: FigshareUser[] = [
+export const users: FigshareUser[] = [
   {
     id: 1,
     first_name: 'Mock',
@@ -64,6 +64,7 @@ const users: FigshareUser[] = [
     quota: 100000,
     used_quota: 1000,
     institution_id: 1,
+    group_id: 1,
   },
   {
     id: 2,
@@ -76,6 +77,7 @@ const users: FigshareUser[] = [
     quota: 100000,
     used_quota: 1000,
     institution_id: 1,
+    group_id: 1,
   },
   {
     id: 3,
@@ -88,6 +90,7 @@ const users: FigshareUser[] = [
     quota: 100000,
     used_quota: 1000,
     institution_id: 1,
+    group_id: 1,
   },
   {
     id: 4,
@@ -100,6 +103,7 @@ const users: FigshareUser[] = [
     quota: 100000,
     used_quota: 100000,
     institution_id: 1,
+    group_id: 1,
   },
   ...((n) => {
     return Array.from({ length: n }, (_, i) => ({
@@ -113,6 +117,7 @@ const users: FigshareUser[] = [
       quota: 100000,
       used_quota: Math.min(100000, Math.floor(Math.random() * 130000)),
       institution_id: 1,
+      group_id: 1,
     }))
   })(10000)
 ]
