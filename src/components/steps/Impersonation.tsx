@@ -35,7 +35,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
         return await fetch<FigshareUser[]>(`https://api.figshare.com/v2/account/institution/accounts?page_size=${limit}&page=${pageParam}`);
       } catch(e) {
         console.error(e);
-        throw new Error('Error fetching users');
+        throw new Error('Failed to fetch user list');
       }
     },
     initialPageParam: 1,
