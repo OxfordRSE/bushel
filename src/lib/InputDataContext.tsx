@@ -418,15 +418,19 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
 
   // Start file-level checks when all rows are parsed
   useEffect(() => {
-    if (rowChecksCompleted && fileChecks.current.length === 0 && rows.length > 0) {
-      const data = Object.fromEntries(rows.map(r => {
-        const parser = parsersRef.current.find(p => p.id === r.id);
-        if (!parser) throw new Error(`No parser with id ${r.id}`);
-        return [
-          r.excelRowNumber,
-          parser
-        ]
-      }));
+    if (
+      rowChecksCompleted &&
+      fileChecks.current.length === 0 &&
+      rows.length > 0 &&
+      parsersRef.current.length > 0
+    ) {
+      const data = Object.fromEntries(
+        rows.map((r) => {
+          const parser = parsersRef.current.find((p) => p.id === r.id);
+          if (!parser) throw new Error(`No parser with id ${r.id}`);
+          return [r.excelRowNumber, parser];
+        }),
+      );
 
       fileChecks.current = [
         new CheckTitlesAreUnique(data),
