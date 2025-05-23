@@ -466,7 +466,7 @@ export default function InputDataStep({
           <div className="text-sm text-gray-500" id="checks-list">
             <p>
               Checks will be run on the data in the spreadsheet. The following
-              checks are performed:
+              checks are performed on each row:
             </p>
             <dl>
               <dt>Spreadsheet structure</dt>
@@ -485,11 +485,6 @@ export default function InputDataStep({
                 All file paths in the Files column resolve to existing files in
                 the root directory.
               </dd>
-              <dt>FigShare Quota</dt>
-              <dd>
-                The combined filesize of all paths in the Files column does not
-                exceed the remaining quota for the uploading account.
-              </dd>
               <dt>Categories</dt>
               <dd>
                 All categories are valid and exist in FigShare. Each item has at
@@ -506,6 +501,21 @@ export default function InputDataStep({
                 legitimate FigShare values (correcting for capitalisation and
                 similar differences).
               </dd>
+              <dt>Custom field validation</dt>
+              <dd>
+                Custom fields with validation rules are checked against the
+                rules.
+              </dd>
+            </dl>
+            <p>Additional checks are performed on the data as a whole:</p>
+            <dl>
+              <dt>FigShare Quota</dt>
+              <dd>
+                The combined filesize of all paths in the Files column does not
+                exceed the remaining quota for the uploading account.
+              </dd>
+              <dt>Inter-row compatibility</dt>
+              <dd>All rows have unique titles.</dd>
             </dl>
           </div>
         )}

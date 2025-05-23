@@ -1,6 +1,10 @@
 // ChatGPT generated from FigShare's Swagger 2.0 API documentation
-import { z } from 'zod';
-import {AuthorDetailsSchema, FundingCreateSchema, RelatedMaterialSchema} from "@/lib/types/schemas";
+import { z } from "zod";
+import {
+  AuthorDetailsSchema,
+  FundingCreateSchema,
+  RelatedMaterialSchema,
+} from "@/lib/types/schemas";
 
 /** Represents a user in the FigShare system. */
 export interface FigshareUser {
@@ -27,22 +31,28 @@ export interface FigshareGroup {
   id: number;
   name: string;
   resource_id: string;
-  parent_id: number|null;
+  parent_id: number | null;
   association_criteria: string;
 }
 
 export interface FigshareCustomField {
   id: number;
   name: string;
-  field_type: |
-      "text" |
-      "textarea" |
-      "dropdown" |
-      "url" |
-      "email"|
-      "date" |
-      "dropdown_large_list";
-  settings?: object;
+  field_type:
+    | "text"
+    | "textarea"
+    | "dropdown"
+    | "url"
+    | "email"
+    | "date"
+    | "dropdown_large_list";
+  settings?: {
+    validations?: {
+      min_length?: number;
+      max_length?: number;
+    };
+    placeholder?: string;
+  };
   is_mandatory?: boolean;
 }
 
@@ -80,12 +90,12 @@ export interface FigshareArticle {
   custom_fields?: FigshareCustomField[];
 }
 
-type TimelineUpdate = never
+type TimelineUpdate = never;
 
 export type CustomArticleFieldAdd = {
-  name: string,
-  value: string
-}
+  name: string;
+  value: string;
+};
 
 export type AuthorDetails = z.infer<typeof AuthorDetailsSchema>;
 export type RelatedMaterial = z.infer<typeof RelatedMaterialSchema>;
@@ -200,10 +210,10 @@ export interface FigshareInitiateUpload {
 export interface FigshareUploadStart {
   token: string;
   name: string;
-  size: number,
-  md5: string;  // as provided on upload creation
-  status: "PENDING"|"COMPLETED"|"ABORTED";
-  parts: FigshareFilePart[]
+  size: number;
+  md5: string; // as provided on upload creation
+  status: "PENDING" | "COMPLETED" | "ABORTED";
+  parts: FigshareFilePart[];
 }
 
 /** Represents a file associated with a FigShare item. */
@@ -211,6 +221,6 @@ export interface FigshareFilePart {
   partNo: number;
   startOffset: number;
   endOffset: number;
-  status: "PENDING"|"COMPLETE";
+  status: "PENDING" | "COMPLETE";
   locked: boolean;
 }

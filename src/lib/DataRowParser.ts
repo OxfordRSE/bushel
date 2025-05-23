@@ -1,10 +1,13 @@
-import { fileRefCheck, FileRefCheckContext } from "@/lib/checks/row/check_files";
+import {
+  fileRefCheck,
+  FileRefCheckContext,
+} from "@/lib/checks/row/check_files";
 import { Field } from "@/lib/InputDataContext";
 import {
   categoryCountCheck,
   CategoryCountCheckContext,
 } from "@/lib/checks/row/check_category_count";
-import type {ZodError} from "zod";
+import type { ZodError } from "zod";
 import { z } from "zod";
 import {
   keywordCountCheck,
@@ -16,7 +19,12 @@ import {
   FundingCreate,
   RelatedMaterial,
 } from "@/lib/types/figshare-api";
-import {AuthorDetailsSchema, FundingCreateSchema, RelatedMaterialSchema} from "@/lib/types/schemas";
+import {
+  AuthorDetailsSchema,
+  FundingCreateSchema,
+  RelatedMaterialSchema,
+} from "@/lib/types/schemas";
+import { customFieldValidationCheck } from "@/lib/checks/row/check_custom_field_validations";
 
 export type CheckStatus =
   | "pending"
@@ -94,15 +102,28 @@ export interface DataRowCheck<T extends DataRowCheckContext = never> {
 
 type AllowedCellJSON = FundingCreate | RelatedMaterial | AuthorDetails;
 
-export type ParsedCellContentType = string | string[] | AllowedCellJSON[] | Date;
+export type ParsedCellContentType =
+  | string
+  | string[]
+  | AllowedCellJSON[]
+  | Date;
 
-function isParsedCellContentType(v: unknown, _root = true): v is ParsedCellContentType {
+function isParsedCellContentType(
+  v: unknown,
+  _root = true,
+): v is ParsedCellContentType {
   if (_root)
-    return v instanceof Date || typeof v === "string" || (Array.isArray(v) && v.every((v) => isParsedCellContentType(v, false)));
-  return typeof v === "string"
-    || AuthorDetailsSchema.safeParse(v).success
-    || FundingCreateSchema.safeParse(v).success
-    || RelatedMaterialSchema.safeParse(v).success;
+    return (
+      v instanceof Date ||
+      typeof v === "string" ||
+      (Array.isArray(v) && v.every((v) => isParsedCellContentType(v, false)))
+    );
+  return (
+    typeof v === "string" ||
+    AuthorDetailsSchema.safeParse(v).success ||
+    FundingCreateSchema.safeParse(v).success ||
+    RelatedMaterialSchema.safeParse(v).success
+  );
 }
 
 type ExcelCell =
@@ -154,6 +175,7 @@ export class DataRowParser {
     [categoryCountCheck.name]: [{ status: "pending" }],
     [keywordCountCheck.name]: [{ status: "pending" }],
     [selectValuesCheck.name]: [{ status: "pending" }],
+    [customFieldValidationCheck.name]: [{ status: "pending" }],
   };
   private _internalContext: DataRowCheckContext = {};
 
@@ -217,13 +239,13 @@ export class DataRowParser {
 
   private report =
     (label: string) =>
-      (result: CheckResult): boolean | void => {
-        if (this.terminated) return true;
-        this.checks[label].push(result);
-        if (result.warning || result.error) {
-          return this.emitToUI(result); // result updates are not propagated directly to UI
-        }
-      };
+    (result: CheckResult): boolean | void => {
+      if (this.terminated) return true;
+      this.checks[label].push(result);
+      if (result.warning || result.error) {
+        return this.emitToUI(result); // result updates are not propagated directly to UI
+      }
+    };
 
   // Expand the sparse array of input data into a full object by comparing vs headers
   private async expand_row_data() {
@@ -272,9 +294,7 @@ export class DataRowParser {
                 "InvalidInputData",
               );
             }
-            v =  (field.internal_settings.is_array && !Array.isArray(v))
-              ? [v]
-              : v;
+            v = field.internal_settings.is_array && !Array.isArray(v) ? [v] : v;
             if (!isParsedCellContentType(v)) {
               throw new DataError(
                 `${header} field is incorrectly formatted`,
@@ -290,18 +310,26 @@ export class DataRowParser {
           }
           if (field.internal_settings.schema) {
             try {
-              const schema = this.getSchema(field.internal_settings.schema, field.internal_settings.is_array, field.is_mandatory);
-              const tmp = schema.parse(value);  // Don't overwrite value until strict validation is done
+              const schema = this.getSchema(
+                field.internal_settings.schema,
+                field.internal_settings.is_array,
+                field.is_mandatory,
+              );
+              const tmp = schema.parse(value); // Don't overwrite value until strict validation is done
               // Warn on unrecognized keys
               try {
                 if (field.internal_settings.schema instanceof z.ZodObject) {
-                  const schema = this.getSchema(field.internal_settings.schema.strict(), field.internal_settings.is_array, field.is_mandatory);
+                  const schema = this.getSchema(
+                    field.internal_settings.schema.strict(),
+                    field.internal_settings.is_array,
+                    field.is_mandatory,
+                  );
                   schema.parse(value);
                 }
               } catch (e) {
                 const err = e as ZodError;
                 const message = err.issues
-                  .filter(i => i.code === "unrecognized_keys")
+                  .filter((i) => i.code === "unrecognized_keys")
                   .map((i) => i.keys)
                   .flat()
                   .join(", ");
@@ -313,7 +341,7 @@ export class DataRowParser {
               value = tmp;
             } catch (e) {
               const err = e as ZodError;
-              const message = err.issues.map(i => i.message).join(". ");
+              const message = err.issues.map((i) => i.message).join(". ");
               throw new DataError(
                 `Invalid JSON for ${header}: ${message}`,
                 "InvalidInputData",
@@ -336,7 +364,7 @@ export class DataRowParser {
   }
 
   getSchema(schema: z.ZodTypeAny, isArray = false, isMandatory = false) {
-    if(isArray) {
+    if (isArray) {
       if (isMandatory) {
         return schema.array().nonempty();
       } else {
@@ -363,6 +391,7 @@ export class DataRowParser {
       categoryCountCheck,
       keywordCountCheck,
       selectValuesCheck,
+      customFieldValidationCheck,
     ];
 
     const debug = (...args: unknown[]) => {
@@ -380,11 +409,11 @@ export class DataRowParser {
         e instanceof DataError
           ? e
           : new DataError(
-            e instanceof Error
-              ? `Failed to read row data: ${e.message}`
-              : String(e),
-            "InvalidInputData",
-          );
+              e instanceof Error
+                ? `Failed to read row data: ${e.message}`
+                : String(e),
+              "InvalidInputData",
+            );
       this.report("Read data")({
         status: "failed",
         error,
@@ -407,11 +436,11 @@ export class DataRowParser {
           e instanceof DataError
             ? e
             : new DataError(
-              e instanceof Error
-                ? `Failed to run check: ${e.message}`
-                : String(e),
-              "CheckError",
-            );
+                e instanceof Error
+                  ? `Failed to run check: ${e.message}`
+                  : String(e),
+                "CheckError",
+              );
         this.report(check.name)({
           status: "failed",
           error,
