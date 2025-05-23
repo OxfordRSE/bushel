@@ -48,6 +48,10 @@ interface InputDataContextValue {
   rowChecksCompleted: boolean;
   getParser: (id: DataRowStatus["id"]) => DataRowParser;
   resetKey: number;
+  maxErrorCount: number;
+  setMaxErrorCount: Updater<number>;
+  maxWarningCount: number;
+  setMaxWarningCount: Updater<number>;
 }
 
 type combineFieldsArgs = {
@@ -223,8 +227,10 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const [rowChecksCompleted, setRowChecksCompleted] = useImmer<boolean>(false);
   const [file, _setFile] = useImmer<File | null>(null);
   const [ready, setReady] = useImmer<boolean>(false);
-  const {institutionCategories, institutionLicenses, targetUser} = useAuth();
-  const {fields, groupItemTypes} = useGroup();
+  const { institutionCategories, institutionLicenses, targetUser } = useAuth();
+  const { fields, groupItemTypes } = useGroup();
+  const [maxErrorCount, setMaxErrorCount] = useImmer<number>(20);
+  const [maxWarningCount, setMaxWarningCount] = useImmer<number>(20);
   const [parserContext, setParserContext] = useImmer<ParserContext>({
     rootDir: undefined,
     minCategoryCount: 1,
@@ -233,6 +239,8 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   });
   const fileChecks = useRef<FileCheck[]>([]);
   const [resetKey, setResetKey] = useImmer<number>(0);
+  const errorCount = useRef<number>(0);
+  const warningCount = useRef<number>(0);
 
   const field_queries_loaded = useMemo(
       () => !!(institutionCategories && institutionLicenses && fields && groupItemTypes),
@@ -253,7 +261,9 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   }, [fields, institutionCategories, institutionLicenses, groupItemTypes, field_queries_loaded, setFieldList, setReady]);
 
   const halt = useCallback(() => {
-    parsersRef.current.forEach(p => p.terminate());
+    errorCount.current = 0;
+    warningCount.current = 0;
+    parsersRef.current.forEach((p) => p.terminate());
     parsersRef.current = [];
     sessionRef.current++;
     setWorking(false);
@@ -350,15 +360,16 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         warnings: []
       };
 
-      const update = (id: DataRowId, patch: Partial<DataRowStatus>): boolean | void => {
-        if (debug) console.debug('update', id, patch);
-        let shouldTerminate = false;
-        setRows(draft => {
-          const idx = draft.findIndex(r => r.id === id);
+      const update = (
+        id: DataRowId,
+        patch: Partial<DataRowStatus>,
+      ): boolean | void => {
+        if (debug) console.debug("update", id, patch);
+        setRows((draft) => {
+          const idx = draft.findIndex((r) => r.id === id);
           if (idx === -1) {
             // row not found - terminate
-            shouldTerminate = true;
-            return;
+            return true;
           }
           Object.assign(draft[idx], patch);
         });
@@ -367,9 +378,24 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         if (allFinished) {
           setWorking(false);
           setRowChecksCompleted(true);
-          shouldTerminate = true;
+          return true;
         }
-        return shouldTerminate; // allow continuation
+        // If we've passed the error or warning threshold, stop everything
+        if (patch.status === "error") {
+          errorCount.current++;
+          if (errorCount.current >= maxErrorCount) {
+            halt();
+            return true;
+          }
+        }
+        if (patch.warnings?.length) {
+          warningCount.current++;
+          if (warningCount.current >= maxWarningCount) {
+            halt();
+            return true;
+          }
+        }
+        // allow continuation
       };
 
       const parser = new DataRowParser(data, colNameMap, rowId, update, fieldList, parserContext);
@@ -426,10 +452,15 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         parserContext, setParserContext,
         check,
         getParser,
-        resetKey
-      }}>
-        {children}
-      </InputDataContext.Provider>
+        resetKey,
+        maxErrorCount,
+        setMaxErrorCount,
+        maxWarningCount,
+        setMaxWarningCount,
+      }}
+    >
+      {children}
+    </InputDataContext.Provider>
   );
 }
 
