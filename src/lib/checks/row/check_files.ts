@@ -20,14 +20,14 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
 
     // Check actual API use support
     if (
-        typeof FileSystemHandle === "undefined" ||
-        !("getFile" in FileSystemFileHandle.prototype)
+      typeof FileSystemHandle === "undefined" ||
+      !("getFile" in FileSystemFileHandle.prototype)
     ) {
       emit({
         status: "failed",
         error: new DataError(
-            "This browser does not support the File System Access API",
-            "UnsupportedBrowser",
+          "This browser does not support the File System Access API",
+          "UnsupportedBrowser",
         ),
       });
       return;
@@ -46,8 +46,8 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
             emit({
               status: "in_progress",
               error: new DataError(
-                  `Invalid filename format: ${filename} is of type ${typeof filename}, not string`,
-                  "InvalidFilenameFormat",
+                `Invalid filename format: ${filename} is of type ${typeof filename}, not string`,
+                "InvalidFilenameFormat",
               ),
             });
             continue;
@@ -56,36 +56,46 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
           file = await fileHandle.getFile();
         } else {
           // We can't check absolute paths without a handle in the browser
-          emit({ status: "failed", error: new DataError("A root directory must be selected when a Files column is present", "NoRootDir") });
+          emit({
+            status: "failed",
+            error: new DataError(
+              "A root directory must be selected when a Files column is present",
+              "NoRootDir",
+            ),
+          });
           return;
         }
 
         if (file.size === 0) {
           if (
-              emit({
-                status: "in_progress",
-                warning: `File is empty: ${filename}`,
-              })
+            emit({
+              status: "failed",
+              error: new DataError(
+                `File is empty: ${filename}`,
+                "EmptyFileError",
+              ),
+            })
           )
             return;
+          all_ok = false;
         } else {
           parser.setInternalContextEntry("quotaUsed", quotaUsed + file.size); // Usage checking is done once after all files are checked
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         const kind =
-            err instanceof DOMException && err.name === "NotFoundError"
-                ? "FileNotFound"
-                : "FileAccessError";
+          err instanceof DOMException && err.name === "NotFoundError"
+            ? "FileNotFound"
+            : "FileAccessError";
 
         if (
-            emit({
-              status: "in_progress",
-              error: new DataError(
-                  `Problem accessing "${filename}": ${message}`,
-                  kind,
-              ),
-            })
+          emit({
+            status: "in_progress",
+            error: new DataError(
+              `Problem accessing "${filename}": ${message}`,
+              kind,
+            ),
+          })
         )
           return;
         all_ok = false;
@@ -93,9 +103,9 @@ export const fileRefCheck: DataRowCheck<FileRefCheckContext> = {
     }
 
     emit(
-        all_ok
-            ? { status: "success", details: "File check completed" }
-            : { status: "failed" },
+      all_ok
+        ? { status: "success", details: "File check completed" }
+        : { status: "failed" },
     );
   },
 };
