@@ -47,6 +47,8 @@ export interface FigshareCustomField {
     | "date"
     | "dropdown_large_list";
   settings?: {
+    options?: string[];
+    is_multiple?: boolean;
     validations?: {
       min_length?: number;
       max_length?: number;

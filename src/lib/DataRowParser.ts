@@ -302,7 +302,10 @@ export class DataRowParser {
               );
             }
             value = v;
-          } else if (field.internal_settings.is_array) {
+          } else if (
+            field.internal_settings.is_array ||
+            field.settings?.is_multiple
+          ) {
             value = input
               .split(/;\s*/)
               .map((v) => v.trim())

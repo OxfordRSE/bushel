@@ -17,7 +17,9 @@ export const customFieldValidationCheck: DataRowCheck<never> = {
       // Non-required fields with no value are skipped
       if (
         !field?.is_mandatory &&
-        (parser.data[key] === undefined || parser.data[key] === null)
+        (parser.data[key] === undefined ||
+          parser.data[key] === null ||
+          parser.data[key] === "")
       ) {
         continue;
       }
