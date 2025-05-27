@@ -67,9 +67,9 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   // Utilities for fuzzy matching titles
   const exactMatches = useMemo(() => {
     return parsedRows
-        .filter(r => r.title && articleTitles.includes(r.title))
-        .map(r => r.title)
-        .filter(Boolean) as string[];
+      .filter(r => r.title && articleTitles.includes(r.title))
+      .map(r => r.title)
+      .filter(Boolean) as string[];
   }, [parsedRows, articleTitles]);
 
   const cleanArticleTitles = useMemo(() => {
@@ -110,8 +110,8 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
       }
       if (!data) return { id: r.id, files: [] };
       const categories = (data?.categories as string[])
-          .map(c => institutionCategories.find(x => x.title === c)?.source_id)
-          .filter(c => c !== undefined);
+        .map(c => institutionCategories.find(x => x.title === c)?.source_id)
+        .filter(c => c !== undefined);
       if (categories.some(c => c === undefined)) {
         throw new Error(`Row ${r.id} has invalid categories: ${(data.categories as string[]).filter(c => !institutionCategories.some(x => x.title === c)).join(',')}`);
       }
@@ -119,8 +119,11 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
       if (institutionLicenses.length > 0 && license === undefined) {
         throw new Error(`Row ${r.id} has invalid license: ${data?.license}`);
       }
-      const customFields = fields?.map(f => ({name: f.name, value: String(data[f.name])}))
-          .filter(x => x.value !== undefined && x.value !== null);
+      const customFields = fields?.filter(f => data[f.name] !== undefined && data[f.name] !== null)
+        .map(f => ({
+          name: f.name,
+          value: String(data[f.name])
+        }));
 
       return {
         id: r.id,
@@ -148,15 +151,15 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!inputDataParsingComplete) setUploadState({});
     setUploadState(
-        Object.fromEntries(parsedRows.map((r) => ([
-          r.id,
-          {
-            id: r.id,
-            excelRowNumber: r.excelRowNumber,
-            status: (exactMatches.includes(r.title ?? "") ? 'skipped' : 'pending') as UploadStatus,
-            fileProgress: undefined,
-          }
-        ])))
+      Object.fromEntries(parsedRows.map((r) => ([
+        r.id,
+        {
+          id: r.id,
+          excelRowNumber: r.excelRowNumber,
+          status: (exactMatches.includes(r.title ?? "") ? 'skipped' : 'pending') as UploadStatus,
+          fileProgress: undefined,
+        }
+      ])))
     );
   }, [exactMatches, inputDataParsingComplete, parsedRows, setUploadState]);
 
@@ -170,8 +173,8 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   }, [parsedRows]);
 
   const getRow = useCallback(
-      (id: DataRowId) => add_title(uploadState[id]),
-      [add_title, uploadState]
+    (id: DataRowId) => add_title(uploadState[id]),
+    [add_title, uploadState]
   );
 
   const uploadControllers = useRef(new Map<DataRowId, () => void>());
@@ -206,11 +209,11 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
         if (cancelled) return cancel();
 
         const result = await fetch<FigshareArticleCreateResponse>(
-            'https://api.figshare.com/v2/account/articles',
-            {
-              method: 'POST',
-              body: upload_row.data,
-            }
+          'https://api.figshare.com/v2/account/articles',
+          {
+            method: 'POST',
+            body: upload_row.data,
+          }
         );
 
         if (cancelled) return cancel();
