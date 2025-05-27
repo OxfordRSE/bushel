@@ -21,12 +21,19 @@ export function GroupProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => setGroup(null), [token, targetUser?.id]);
 
+  // Don't refetch article data unless group changes, otherwise the app recalculates duplicate articles after upload
+  const keepDataOptions = {
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  }
+
   const fields = useQuery<FigshareCustomField[]>({
     queryKey: ['fields', group?.id, token],
     queryFn: async () => {
       return await fetch<FigshareCustomField[]>(`https://api.figshare.com/v2/account/institution/custom_fields?group_id=${group?.id}`);
     },
-    enabled: !!group,
+    enabled: !!group
   });
 
   const limit = 1000;
@@ -42,6 +49,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       return pages.length + 1;
     },
     enabled: !!group,
+    ...keepDataOptions
   });
 
   const public_articles = useInfiniteQuery<FigshareArticle[]>({
@@ -55,6 +63,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       return pages.length + 1;
     },
     enabled: !!group,
+    ...keepDataOptions
   });
 
   const item_types = useQuery<FigshareItemType[]>({
@@ -62,7 +71,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       return await fetch<FigshareItemType[]>(`https://api.figshare.com/v2/item_types?group_id=${group?.id}`);
     },
-    enabled: !!group,
+    enabled: !!group
   });
 
   const combinedArticles = useMemo(() => {
