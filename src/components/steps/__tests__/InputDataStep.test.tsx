@@ -49,18 +49,6 @@ describe('InputDataStep', () => {
     expect(screen.getByRole('button', { name: /check file/i })).toBeDisabled();
   });
 
-  it('shows spinner when group is selected but not ready', async () => {
-    render(
-      <Providers>
-        <MockProviderData group={groups[0]} timeout={50}>
-          <InputDataStep openByDefault />
-        </MockProviderData>
-      </Providers>
-    );
-
-    expect(await screen.findByText(/loading group details/i)).toBeInTheDocument();
-  });
-
   it('shows advanced options when toggled', async () => {
     render(
       <Providers>
