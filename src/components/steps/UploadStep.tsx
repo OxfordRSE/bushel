@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import {useCallback, useMemo} from 'react';
 import StepPanel from '@/components/steps/StepPanel';
 import { useAuth } from '@/lib/AuthContext';
 import {UploadRowStateWithTitle, useUploadData} from '@/lib/UploadDataContext';
@@ -9,20 +9,29 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {CogIcon, Package, Ban, TriangleAlertIcon} from 'lucide-react';
 import {useInputData} from "@/lib/InputDataContext";
+import {useUploadReports} from "@/lib/UploadReportsContext";
+import {useGroup} from "@/lib/GroupContext";
 
 export default function UploadStep({ openByDefault }: { openByDefault?: boolean }) {
+  const { createReport } = useUploadReports();
   const { impersonationTarget } = useAuth();
+  const { setGroup } = useGroup();
   const {rows: parsedRows} = useInputData();
   const {
     rows,
     uploadAll,
     cancelAll,
     cancelRow,
-    getSummaryCSV,
     exactMatches,
     duplicatesAcknowledged,
     fuzzyWarnings
   } = useUploadData();
+
+  const upload = useCallback(async () => {
+    await uploadAll();
+    createReport(rows);
+    setGroup(null); // Reset group after upload to prevent re-uploading to the same group
+  }, [uploadAll, createReport, rows, setGroup]);
 
   const all_rows_valid = useMemo(() => {
     return parsedRows.every(row => row.status === "valid");
@@ -43,15 +52,6 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
     'pending': { title: 'Upload to FigShare', status: 'default' as Parameters<typeof StepPanel>[0]["status"] },
     'idle': { title: 'Upload to FigShare', status: 'default' as Parameters<typeof StepPanel>[0]["status"] },
   }[overallStatus];
-
-  const downloadSummary = () => {
-    const csv = getSummaryCSV();
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'upload-summary.csv';
-    link.click();
-  };
 
   if (!all_rows_valid) {
     return <StepPanel
@@ -201,7 +201,7 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
         </div>
 
         <div className="flex items-center space-x-2 justify-evenly">
-          <Button onClick={uploadAll} className="w-[75%] cursor-pointer" disabled={overallStatus === "in progress"}>
+          <Button onClick={upload} className="w-[75%] cursor-pointer" disabled={overallStatus === "in progress"}>
             Upload!
           </Button>
           <Button
@@ -213,14 +213,6 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
             Cancel
           </Button>
         </div>
-
-        <Button
-          className="w-full cursor-pointer"
-          disabled={overallStatus !== 'complete' && overallStatus !== 'error'}
-          onClick={downloadSummary}
-        >
-          Download Summary
-        </Button>
       </div>
     </StepPanel>
   );

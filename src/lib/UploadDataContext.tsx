@@ -47,7 +47,6 @@ interface UploadDataContextType {
   uploadAll: () => Promise<void>;
   cancelRow: (id: DataRowId) => void;
   cancelAll: () => void;
-  getSummaryCSV: () => string;
   exactMatches: string[];
   fuzzyWarnings: FuzzyMatch[];
   duplicatesAcknowledged: boolean;
@@ -63,6 +62,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   const { rows: parsedRows, getParser, completed: inputDataParsingComplete, parserContext } = useInputData();
   const articleTitles = useMemo(() => articles?.map(article => article.title) || [], [articles]);
   const [duplicatesAcknowledged, setDuplicatesAcknowledged] = useState(false);
+
 
   // Utilities for fuzzy matching titles
   const exactMatches = useMemo(() => {
@@ -262,6 +262,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
 
   const uploadAll = useCallback(async () => {
     await Promise.all(uploadData.map(r => r.id).map(uploadRow));
+
   }, [uploadData, uploadRow]);
 
   const cancelRow = useCallback((id: DataRowId) => {
@@ -276,24 +277,6 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     uploadControllers.current.forEach(cancel => cancel());
   }, []);
 
-  const getSummaryCSV = useCallback(() => {
-    const headers = ['RowID', 'Status', 'Error', 'Warnings', "Started", "Completed", "DurationSec"];
-    const rows = Object.values(uploadState).map(row => {
-      const warnings = row.result?.warnings?.map(w => JSON.stringify(w)).join('; ') ?? '';
-      const error = JSON.stringify(row.error?.message) ?? '';
-      return [
-        row.id,
-        row.status,
-        error,
-        warnings,
-        row.startedAt? new Date(row.startedAt).toISOString() : '',
-        row.completedAt? new Date(row.completedAt).toISOString() : '',
-        row.completedAt && row.startedAt ? ((row.completedAt - row.startedAt) / 1000).toFixed(2) : '',
-      ].join(',');
-    });
-    return [headers.join(','), ...rows].join('\n');
-  }, [uploadState]);
-
   const ctx: UploadDataContextType = {
     rows: Object.values(uploadState).map(add_title),
     getRow,
@@ -301,7 +284,6 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     uploadAll,
     cancelRow,
     cancelAll,
-    getSummaryCSV,
     exactMatches,
     fuzzyWarnings: fuzzyWarnings.map(w => ({
       ...w,
