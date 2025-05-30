@@ -120,10 +120,18 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
         throw new Error(`Row ${r.id} has invalid license: ${data?.license}`);
       }
       const customFields = fields?.filter(f => data[f.name] !== undefined && data[f.name] !== null)
-        .map(f => ({
-          name: f.name,
-          value: String(data[f.name])
-        }));
+        .map(f => {
+          const value = data[f.name];
+          if (Array.isArray(value)) {
+            return {name: f.name, value: value.map(String)};
+          }
+          return {
+            name: f.name,
+            value: String(data[f.name])
+          }
+        });
+
+      console.debug(`Row ${r.id} customFields:`, customFields);
 
       return {
         id: r.id,

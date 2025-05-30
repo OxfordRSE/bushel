@@ -311,6 +311,16 @@ export class DataRowParser {
               .split(/;\s*/)
               .map((v) => v.trim())
               .filter((v) => v.length > 0);
+
+            if (field.field_type === "url" && (!field.internal_settings.is_array && !field.settings?.is_multiple)) {
+              // If the field is a URL but not an array, we need to ensure it's a single URL
+              if (value.length > 1) {
+                throw new DataError(
+                  `Multiple URLs found in ${header}, but field is not set as multiple`,
+                  "InvalidInputData",
+                );
+              }
+            }
           }
           if (field.internal_settings.schema) {
             try {
@@ -365,6 +375,7 @@ export class DataRowParser {
       status: "success",
       details: "Row data expanded",
     });
+    console.debug(`Row data expanded for ${this.id}`, this.data);
   }
 
   getSchema(schema: z.ZodTypeAny, isArray = false, isMandatory = false) {
