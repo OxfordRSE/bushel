@@ -304,7 +304,8 @@ export class DataRowParser {
             value = v;
           } else if (
             field.internal_settings.is_array ||
-            field.settings?.is_multiple
+            field.settings?.is_multiple ||
+            field.field_type === "url"  // FigShare requires URLs to be arrays, even if not multiple
           ) {
             value = input
               .split(/;\s*/)
