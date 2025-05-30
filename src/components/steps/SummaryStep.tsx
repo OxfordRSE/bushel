@@ -8,7 +8,7 @@ import { Ban } from 'lucide-react';
 import {useUploadReports} from "@/lib/UploadReportsContext";
 
 export default function SummaryStep({ openByDefault }: { openByDefault?: boolean }) {
-  const { reports } = useUploadReports();
+  const { reports, clearReports } = useUploadReports();
   const [downloaded, setDownloaded] = useState<boolean>(false);
 
   const downloadSummary = (i: number) => {
@@ -47,44 +47,47 @@ export default function SummaryStep({ openByDefault }: { openByDefault?: boolean
         {reports.reverse().map((report, index) => {
           const [headers, ...rows] = report.split('\n');
           return <div key={index}>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>#</TableHead>
-                    {headers.split(',').map((header, i) => (
-                      <TableHead key={i} className="capitalize">
-                        {header.trim()}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.slice(0, 4).map((row, rowIndex) => {
-                    const cells = row.split(',');
-                    return (
-                      <TableRow key={rowIndex}>
-                        <TableCell>{rowIndex + 1}</TableCell>
-                        {cells.map((cell, cellIndex) => (
-                          <TableCell key={cellIndex} className="whitespace-pre-wrap">
-                            {cell.trim()}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })}
-                  {rows.length > 5 && <TableRow key={5}><TableCell
-                      colSpan={rows[0].split(',').length}>+ {rows.slice(4).length} rows</TableCell></TableRow>}
-                </TableBody>
-              </Table>
-              <Button
-                key={index}
-                className="w-full cursor-pointer"
-                onClick={() => downloadSummary(index)}
-              >
-                Download Summary of Upload {index + 1}
-              </Button>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  {headers.split(',').map((header, i) => (
+                    <TableHead key={i} className="capitalize">
+                      {header.trim()}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.slice(0, 4).map((row, rowIndex) => {
+                  const cells = row.split(',');
+                  return (
+                    <TableRow key={rowIndex}>
+                      <TableCell>{rowIndex + 1}</TableCell>
+                      {cells.map((cell, cellIndex) => (
+                        <TableCell key={cellIndex} className="whitespace-pre-wrap">
+                          {cell.trim()}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+                {rows.length > 5 && <TableRow key={5}><TableCell
+                    colSpan={rows[0].split(',').length}>+ {rows.slice(4).length} rows</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+            <Button
+              key={index}
+              className="w-full cursor-pointer"
+              onClick={() => downloadSummary(index)}
+            >
+              Download Summary of Upload {index + 1}
+            </Button>
+          </div>
         })}
+        {reports.length > 1 && (
+          <Button key="clear" onClick={() => clearReports()} className="cursor-pointer">Clear all</Button>
+        )}
       </div>
     </StepPanel>
   );

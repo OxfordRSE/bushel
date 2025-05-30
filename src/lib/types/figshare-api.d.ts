@@ -96,7 +96,7 @@ type TimelineUpdate = never;
 
 export type CustomArticleFieldAdd = {
   name: string;
-  value: string;
+  value: string|string[];
 };
 
 export type AuthorDetails = z.infer<typeof AuthorDetailsSchema>;
@@ -130,7 +130,7 @@ export interface FigshareArticleCreate {
    */
   authors?: AuthorDetails[];
   /** List of key, value pairs to be associated with the article */
-  custom_fields?: Record<string, string>;
+  custom_fields?: Record<string, string|string[]>;
   /** List of custom field values, supersedes custom_fields parameter */
   custom_fields_list?: CustomArticleFieldAdd[];
   /** One of: figure, online resource, preprint, book, conference contribution,

@@ -13,6 +13,8 @@ import SelectRootDirectoryStep from "@/components/steps/SelectRootDirectoryStep"
 import {useInputData} from "@/lib/InputDataContext";
 import UploadStep from "@/components/steps/UploadStep";
 import SummaryStep from "@/components/steps/SummaryStep";
+import {useUploadData} from "@/lib/UploadDataContext";
+import {useUploadReports} from "@/lib/UploadReportsContext";
 
 const steps = [
   'Login via FigShare',
@@ -31,7 +33,9 @@ export default function AppFlow() {
   const [completedSteps, setCompletedSteps] = useState<Partial<StepStatus>>({});
   const {user, impersonationTarget} = useAuth();
   const {group} = useGroup();
-  const {file, parserContext} = useInputData();
+  const {file, parserContext, rowChecksCompleted} = useInputData();
+  const { rows } = useUploadData();
+  const { reports } = useUploadReports();
 
   useEffect(() => {
     setCompletedSteps(prev => ({
@@ -41,8 +45,10 @@ export default function AppFlow() {
       [steps[2]]: !!group,
       [steps[3]]: !!parserContext.rootDir,
       [steps[4]]: !!file,
+      [steps[5]]: rowChecksCompleted,
+      [steps[6]]: rows.length > 0 && rows.every(row => row.status === 'completed' || row.status === 'skipped')
     }));
-  }, [user, group, setCompletedSteps, parserContext.rootDir, file]);
+  }, [user, group, setCompletedSteps, parserContext.rootDir, file, rowChecksCompleted, rows]);
 
   const markStepComplete = (index: number) => {
     if (!completedSteps[steps[index]]) {
@@ -67,8 +73,8 @@ export default function AppFlow() {
         markStepComplete(5)
         setActiveStep(6)
       }} />
-      <UploadStep key={`UploadStep-${impersonationTarget?.id ?? user?.id}-${group?.id}`} openByDefault={activeStep === 6} />
-      <SummaryStep openByDefault={activeStep === 7} />
+      <UploadStep key={`UploadStep-${impersonationTarget?.id ?? user?.id}-${group?.id}`} openByDefault={rows.length > 0} />
+      <SummaryStep openByDefault={reports?.length > 0} />
     </div>
   );
 }

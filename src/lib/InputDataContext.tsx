@@ -343,19 +343,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
       setLoadErrors([]);
       setLoadWarnings([]);
     },
-    [
-      _setFile,
-      field_queries_loaded,
-      halt,
-      setRowChecksCompleted,
-      setLoadErrors,
-      setLoadWarnings,
-      setParserContext,
-      setReady,
-      setRows,
-      targetUser?.quota,
-      targetUser?.used_quota,
-    ],
+    [_setFile, field_queries_loaded, halt, setRowChecksCompleted, setLoadErrors, setLoadWarnings, setParserContext, setReady, setRows],
   );
 
   useEffect(() => {
@@ -483,6 +471,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     setRows(newRows);
     parsersRef.current = newParsers;
     newParsers.forEach((p) => p.runAllChecks());
+    _setFile(null); // Clear the file after parsing
   }, [
     debug,
     fieldList,
@@ -495,6 +484,10 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     setLoadWarnings,
     setRows,
     setWorking,
+    _setFile,
+    maxErrorCount,
+    maxWarningCount,
+    halt,
   ]);
 
   const getParser = useCallback((id: DataRowStatus["id"]) => {

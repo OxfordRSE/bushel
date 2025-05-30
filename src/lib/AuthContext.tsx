@@ -4,7 +4,6 @@ import {createContext, useCallback, useContext, useEffect, useState} from 'react
 import {loginWithFigShare} from '@/lib/auth';
 import {FigshareCategory, FigshareLicense, FigshareUser} from "@/lib/types/figshare-api";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
-import {useUploadReports} from "@/lib/UploadReportsContext";
 
 export type AuthState = {
   token: string | null;
@@ -25,7 +24,6 @@ export type AuthState = {
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { clearReports } = useUploadReports();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<FigshareUser | null>(null);
   const [impersonationTarget, setImpersonationTarget] = useState<FigshareUser | null>(null);
@@ -118,9 +116,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setToken(null);
     setUser(null);
     setImpersonationTarget(null);
-    clearReports();
     await queryClient.invalidateQueries({queryKey: ['institution']});
-  }, [queryClient, clearReports]);
+  }, [queryClient]);
 
   const licences = useQuery({
         queryKey: ['institution', 'licenses', impersonationTarget?.id, user?.id],

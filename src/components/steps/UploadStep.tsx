@@ -29,9 +29,9 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
 
   const upload = useCallback(async () => {
     await uploadAll();
-    createReport(rows);
+    createReport();
     setGroup(null); // Reset group after upload to prevent re-uploading to the same group
-  }, [uploadAll, createReport, rows, setGroup]);
+  }, [uploadAll, createReport, setGroup]);
 
   const all_rows_valid = useMemo(() => {
     return parsedRows.every(row => row.status === "valid");

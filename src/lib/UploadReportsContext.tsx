@@ -1,13 +1,13 @@
 'use client';
 
-import {createContext, ReactNode, useContext, useRef, } from 'react';
-import {UploadRowState} from "@/lib/UploadDataContext";
+import {createContext, ReactNode, useCallback, useContext, useRef,} from 'react';
+import {useUploadData} from "@/lib/UploadDataContext";
 
 export type csv = string;
 
 interface UploadReportsContextType {
   reports: csv[];
-  createReport: (uploadState: UploadRowState[]) => void;
+  createReport: () => void;
   clearReports: () => void;
 }
 
@@ -15,8 +15,9 @@ const UploadReportsContext = createContext<UploadReportsContextType | undefined>
 
 export function UploadReportsProvider({ children }: { children: ReactNode }) {
   const reports = useRef<csv[]>([]);
+  const { rows } = useUploadData();
 
-  const createReport = (rows: UploadRowState[]) => {
+  const createReport = useCallback(() => {
     const headers = ['RowID', 'Status', 'Error', 'Warnings', "Started", "Completed", "DurationSec"];
     const csv_rows = rows.map(row => {
       const warnings = row.result?.warnings?.map(w => JSON.stringify(w)).join('; ') ?? '';
@@ -32,7 +33,7 @@ export function UploadReportsProvider({ children }: { children: ReactNode }) {
       ].join(',');
     });
     reports.current.push([headers.join(','), ...csv_rows].join('\n'));
-  }
+  }, [rows]);
 
   const clearReports = () => {
     reports.current = [];

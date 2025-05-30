@@ -34,15 +34,17 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   if (!ready) return null; // ⏳ block render until MSW is ready
   return (
     <QueryClientProvider client={queryClient}>
-      <UploadReportsProvider>
-        <AuthProvider>
-          <GroupProvider>
-            <InputDataProvider>
-              <UploadDataProvider>{children}</UploadDataProvider>
-            </InputDataProvider>
-          </GroupProvider>
-        </AuthProvider>
-      </UploadReportsProvider>
+      <AuthProvider>
+        <GroupProvider>
+          <InputDataProvider>
+            <UploadDataProvider>
+              <UploadReportsProvider>
+                {children}
+              </UploadReportsProvider>
+            </UploadDataProvider>
+          </InputDataProvider>
+        </GroupProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
