@@ -10,13 +10,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {CogIcon, Package, Ban, TriangleAlertIcon} from 'lucide-react';
 import {useInputData} from "@/lib/InputDataContext";
 import {useUploadReports} from "@/lib/UploadReportsContext";
-import {useGroup} from "@/lib/GroupContext";
 
 export default function UploadStep({ openByDefault }: { openByDefault?: boolean }) {
   const { createReport } = useUploadReports();
   const { impersonationTarget } = useAuth();
-  const { setGroup } = useGroup();
-  const {rows: parsedRows, fileChecks} = useInputData();
+  const {rows: parsedRows, fileChecks, markUploadComplete} = useInputData();
   const {
     rows,
     uploadAll,
@@ -24,14 +22,14 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
     cancelRow,
     exactMatches,
     duplicatesAcknowledged,
-    fuzzyWarnings
+    fuzzyWarnings,
   } = useUploadData();
 
   const upload = useCallback(async () => {
     await uploadAll();
     createReport();
-    setGroup(null); // Reset group after upload to prevent re-uploading to the same group
-  }, [uploadAll, createReport, setGroup]);
+    markUploadComplete();
+  }, [uploadAll, createReport, markUploadComplete]);
 
   const all_rows_valid = useMemo(() => {
     return parsedRows.every(row => row.status === "valid") && fileChecks.every(check => check.status === "valid");

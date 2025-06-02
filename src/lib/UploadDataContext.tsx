@@ -100,7 +100,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
 
   // Extract figshare upload data once parsing is complete
   const uploadData: UploadRowData[] = useMemo(() => {
-    if (!inputDataParsingComplete || !group || parsedRows.some(r => r.status !== 'valid')) return [];
+    if (!inputDataParsingComplete || group?.id === undefined || parsedRows.some(r => r.status !== 'valid')) return [];
     return parsedRows.map((r) => {
       let data;
       try {
@@ -131,8 +131,6 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
           }
         });
 
-      console.debug(`Row ${r.id} customFields:`, customFields);
-
       return {
         id: r.id,
         // data!. used for mandatory fields which are guaranteed to be present by DataRowParser
@@ -153,7 +151,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
         files: data!.files as string[],
       }
     });
-  }, [inputDataParsingComplete, group, parsedRows, getParser, institutionLicenses, fields, institutionCategories]);
+  }, [inputDataParsingComplete, group?.id, parsedRows, getParser, institutionLicenses, fields, institutionCategories]);
 
   // Init upload state
   useEffect(() => {

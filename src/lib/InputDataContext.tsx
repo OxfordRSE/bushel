@@ -4,7 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
+  useRef, 
 } from "react";
 import { type Updater, useImmer } from "use-immer";
 import {
@@ -34,6 +34,7 @@ import {
 import { type ZodTypeAny } from "zod";
 import { CheckTitlesAreUnique } from "@/lib/checks/file/check_titles_are_unique";
 import { CheckQuota } from "@/lib/checks/file/check_quota";
+import {useQueryClient} from "@tanstack/react-query";
 
 export type FileCheckStatusString = "checking" | "valid" | "error";
 
@@ -76,6 +77,8 @@ interface InputDataContextValue {
   setMaxErrorCount: Updater<number>;
   maxWarningCount: number;
   setMaxWarningCount: Updater<number>;
+  // Notify that the data referenced here have been uploaded to FigShare
+  markUploadComplete: () => void;
 }
 
 type combineFieldsArgs = {
@@ -268,7 +271,8 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const [file, _setFile] = useImmer<File | null>(null);
   const [ready, setReady] = useImmer<boolean>(false);
   const { institutionCategories, institutionLicenses, targetUser } = useAuth();
-  const { fields, groupItemTypes } = useGroup();
+  const { fields, groupItemTypes, group } = useGroup();
+  const queryClient = useQueryClient();
   const [maxErrorCount, setMaxErrorCount] = useImmer<number>(20);
   const [maxWarningCount, setMaxWarningCount] = useImmer<number>(20);
   const [parserContext, setParserContext] = useImmer<ParserContext>({
@@ -281,6 +285,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   const [resetKey, setResetKey] = useImmer<number>(0);
   const errorCount = useRef<number>(0);
   const warningCount = useRef<number>(0);
+  const [uploadComplete, setUploadComplete] = useImmer<boolean>(false);
 
   const field_queries_loaded = useMemo(
     () =>
@@ -326,7 +331,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   }, [setWorking]);
 
   const reset = useCallback(
-    (clearParserContext = false) => {
+    async (clearParserContext = false) => {
       halt();
       setReady(field_queries_loaded);
       setFileChecks([]);
@@ -342,14 +347,27 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
       setRows([]);
       setLoadErrors([]);
       setLoadWarnings([]);
+
+      // If the previous data have been uploaded, now's the time to trigger resetting the group
+      if (uploadComplete) {
+        setUploadComplete(false);
+        await queryClient.invalidateQueries({predicate: (query) => 
+            (
+              query.queryKey.includes("my_articles") || 
+              query.queryKey.includes("group_articles")
+            ) && query.queryKey.includes(group?.id)}
+        );
+      }
     },
-    [_setFile, field_queries_loaded, halt, setRowChecksCompleted, setLoadErrors, setLoadWarnings, setParserContext, setReady, setRows, setFileChecks],
+    [halt, setReady, field_queries_loaded, setFileChecks, setRowChecksCompleted, setParserContext, _setFile, setRows, setLoadErrors, setLoadWarnings, uploadComplete, setUploadComplete, queryClient, group?.id],
   );
 
   useEffect(() => {
+    if (targetUser?.id === resetKey)
+      return; // No need to reset if the target user hasn't changed
     reset();
-    setResetKey((prev) => prev + 1);
-  }, [reset, setResetKey, targetUser?.id]);
+    setResetKey(targetUser?.id ?? 0);
+  }, [reset, resetKey, setResetKey, targetUser?.id]);
 
   const setFile = useCallback(
     async (file: File, clearCurrent = true) => {
@@ -520,7 +538,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         ),
       ]);
     }
-  }, [rowChecksCompleted, rows, targetUser?.quota, targetUser?.used_quota, setFileChecks]);
+  }, [rowChecksCompleted, rows, targetUser?.quota, targetUser?.used_quota, setFileChecks, fileChecks.length]);
 
   return (
     <InputDataContext.Provider
@@ -548,6 +566,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         setMaxErrorCount,
         maxWarningCount,
         setMaxWarningCount,
+        markUploadComplete: () => setUploadComplete(true),
       }}
     >
       {children}

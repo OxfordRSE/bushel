@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import { useInputData } from "@/lib/InputDataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,14 +98,17 @@ export default function InputDataStep({
     rows.length,
   ]);
 
-  const resetFile = (clearInput = true) => {
+  const resetFile = useCallback((clearInput = true) => {
     if (clearInput && fileInputRef.current) {
       fileInputRef.current.value = "";
     }
     reset(false);
-  };
+  }, [reset]);
 
-  useEffect(resetFile, [reset, resetKey]);
+  useEffect(() => {
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = "";
+  }, [resetKey]);
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     resetFile(false);
