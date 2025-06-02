@@ -18,18 +18,19 @@ export function UploadReportsProvider({ children }: { children: ReactNode }) {
   const { rows } = useUploadData();
 
   const createReport = useCallback(() => {
-    const headers = ['RowID', 'Status', 'Error', 'Warnings', "Started", "Completed", "DurationSec"];
+    const headers = ['RowID', 'Status', 'Title', 'Error', 'Warnings', "DurationSec", "Started", "Completed"];
     const csv_rows = rows.map(row => {
       const warnings = row.result?.warnings?.map(w => JSON.stringify(w)).join('; ') ?? '';
       const error = JSON.stringify(row.error?.message) ?? '';
       return [
         row.id,
         row.status,
+        row.title,
         error,
         warnings,
+        row.completedAt && row.startedAt ? ((row.completedAt - row.startedAt) / 1000).toFixed(2) : '',
         row.startedAt? new Date(row.startedAt).toISOString() : '',
         row.completedAt? new Date(row.completedAt).toISOString() : '',
-        row.completedAt && row.startedAt ? ((row.completedAt - row.startedAt) / 1000).toFixed(2) : '',
       ].join(',');
     });
     reports.current.push([headers.join(','), ...csv_rows].join('\n'));
