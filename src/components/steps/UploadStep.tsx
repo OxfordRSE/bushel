@@ -16,7 +16,7 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
   const { createReport } = useUploadReports();
   const { impersonationTarget } = useAuth();
   const { setGroup } = useGroup();
-  const {rows: parsedRows} = useInputData();
+  const {rows: parsedRows, fileChecks} = useInputData();
   const {
     rows,
     uploadAll,
@@ -34,16 +34,17 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
   }, [uploadAll, createReport, setGroup]);
 
   const all_rows_valid = useMemo(() => {
-    return parsedRows.every(row => row.status === "valid");
-  }, [parsedRows]);
+    return parsedRows.every(row => row.status === "valid") && fileChecks.every(check => check.status === "valid");
+  }, [parsedRows, fileChecks]);
 
   const overallStatus = useMemo(() => {
     if (!rows.length) return 'idle';
     if (rows.some(r => r.status === 'error')) return 'error';
+    if (fileChecks.some(check => check.status === 'error')) return 'error';
     if (rows.every(r => r.status === 'completed' || r.status === 'skipped')) return 'complete';
     if (rows.some(r => r.status === 'uploading')) return 'in progress';
     return 'pending';
-  }, [rows]);
+  }, [rows, fileChecks]);
 
   const summary = {
     'error': { title: 'Error uploading to FigShare', status: 'error' as Parameters<typeof StepPanel>[0]["status"], icon: <TriangleAlertIcon className="text-red-600" /> },

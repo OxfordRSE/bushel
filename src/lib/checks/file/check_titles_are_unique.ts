@@ -14,6 +14,7 @@ export class CheckTitlesAreUnique implements FileCheck {
         this.status = "checking";
         this.warnings = [];
         this.errors = [];
+        this.check();
     }
 
     check() {

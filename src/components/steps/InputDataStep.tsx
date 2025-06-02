@@ -134,6 +134,7 @@ export default function InputDataStep({
     status = "default";
   } else if (rowsSummary.valid === rows.length) {
     if (fileChecks.some((c) => c.status === "error")) {
+      status = "error";
       summary = (
         <span className={"flex items-center"}>
           Rows are incompatible with one another.

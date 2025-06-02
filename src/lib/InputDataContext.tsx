@@ -277,7 +277,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     minKeywordCount: 1,
     maxKeywordCount: 100,
   });
-  const fileChecks = useRef<FileCheck[]>([]);
+  const [fileChecks, setFileChecks] = useImmer<FileCheck[]>([]);
   const [resetKey, setResetKey] = useImmer<number>(0);
   const errorCount = useRef<number>(0);
   const warningCount = useRef<number>(0);
@@ -329,7 +329,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
     (clearParserContext = false) => {
       halt();
       setReady(field_queries_loaded);
-      fileChecks.current = [];
+      setFileChecks([]);
       setRowChecksCompleted(false);
       if (clearParserContext)
         setParserContext({
@@ -343,7 +343,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
       setLoadErrors([]);
       setLoadWarnings([]);
     },
-    [_setFile, field_queries_loaded, halt, setRowChecksCompleted, setLoadErrors, setLoadWarnings, setParserContext, setReady, setRows],
+    [_setFile, field_queries_loaded, halt, setRowChecksCompleted, setLoadErrors, setLoadWarnings, setParserContext, setReady, setRows, setFileChecks],
   );
 
   useEffect(() => {
@@ -500,7 +500,7 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (
       rowChecksCompleted &&
-      fileChecks.current.length === 0 &&
+      fileChecks.length === 0 &&
       rows.length > 0 &&
       parsersRef.current.length > 0
     ) {
@@ -512,16 +512,15 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         }),
       );
 
-      fileChecks.current = [
+      setFileChecks([
         new CheckTitlesAreUnique(data),
         new CheckQuota(
           data,
           (targetUser?.quota ?? 0) - (targetUser?.used_quota ?? 0),
         ),
-      ];
-      fileChecks.current.forEach((c) => c.check());
+      ]);
     }
-  }, [rowChecksCompleted, rows, targetUser?.quota, targetUser?.used_quota]);
+  }, [rowChecksCompleted, rows, targetUser?.quota, targetUser?.used_quota, setFileChecks]);
 
   return (
     <InputDataContext.Provider
@@ -530,13 +529,13 @@ export function InputDataProvider({ children }: { children: React.ReactNode }) {
         ready,
         file,
         setFile,
-        fileChecks: fileChecks.current,
+        fileChecks,
         halt,
         reset,
         loadErrors,
         loadWarnings,
         working,
-        completed: fileChecks.current.every((s) =>
+        completed: fileChecks.every((s) =>
           ["valid", "error"].includes(s.status),
         ),
         rowChecksCompleted,

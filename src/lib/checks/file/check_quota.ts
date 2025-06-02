@@ -15,6 +15,7 @@ export class CheckQuota implements FileCheck {
         this.status = "checking";
         this.warnings = [];
         this.errors = [];
+        this.check();
     }
 
     check() {
