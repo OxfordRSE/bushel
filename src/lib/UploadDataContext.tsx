@@ -38,6 +38,8 @@ export type UploadRowStateWithTitle = UploadRowState & {
   title?: string;
 };
 
+export type csv = string;
+
 type FuzzyMatch = (Pick<UploadRowStateWithTitle,"title"|"excelRowNumber"> & { articleTitle: string })
 
 interface UploadDataContextType {
@@ -51,6 +53,7 @@ interface UploadDataContextType {
   fuzzyWarnings: FuzzyMatch[];
   duplicatesAcknowledged: boolean;
   setDuplicatesAcknowledged: (acknowledged: boolean) => void;
+  uploadReport?: csv;
 }
 
 const UploadDataContext = createContext<UploadDataContextType | undefined>(undefined);
@@ -171,12 +174,17 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
 
   const add_title = useCallback((row: UploadRowState) => {
     const parsedRow = parsedRows.find(r => r.id === row.id);
-    if (!parsedRow) return row;
+    if (!parsedRow) return {...row, title: undefined};
     return {
       ...row,
       title: parsedRow.title,
     };
   }, [parsedRows]);
+
+  const rowsWithTitle = useMemo(() => {
+    console.debug('Updating rowsWithTitle', Object.values(uploadState).map(add_title));
+    return Object.values(uploadState).map(add_title);
+  }, [add_title, uploadState]);
 
   const getRow = useCallback(
     (id: DataRowId) => add_title(uploadState[id]),
@@ -267,8 +275,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   }, [exactMatches, fetch, parserContext.rootDir, setUploadState, uploadData]);
 
   const uploadAll = useCallback(async () => {
-    await Promise.all(uploadData.map(r => r.id).map(uploadRow));
-
+    await Promise.allSettled(uploadData.map(r => r.id).map(uploadRow));
   }, [uploadData, uploadRow]);
 
   const cancelRow = useCallback((id: DataRowId) => {
@@ -283,8 +290,28 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     uploadControllers.current.forEach(cancel => cancel());
   }, []);
 
+  const uploadReport = useMemo(() => {
+    if (!rowsWithTitle.length) return '';
+    const headers = ['RowID', 'Status', 'Title', 'Error', 'Warnings', "DurationSec", "Started", "Completed"];
+    const csv_rows = rowsWithTitle.map(row => {
+      const warnings = row.result?.warnings?.map(w => JSON.stringify(w)).join('; ') ?? '';
+      const error = JSON.stringify(row.error?.message) ?? '';
+      return [
+        row.id,
+        row.status,
+        row.title,
+        error,
+        warnings,
+        row.completedAt && row.startedAt ? ((row.completedAt - row.startedAt) / 1000).toFixed(2) : '',
+        row.startedAt? new Date(row.startedAt).toISOString() : '',
+        row.completedAt? new Date(row.completedAt).toISOString() : '',
+      ].join(',');
+    });
+    return [headers.join(','), ...csv_rows].join('\n');
+  }, [rowsWithTitle]);
+
   const ctx: UploadDataContextType = {
-    rows: Object.values(uploadState).map(add_title),
+    rows: rowsWithTitle,
     getRow,
     uploadRow,
     uploadAll,
@@ -297,6 +324,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     })).filter(Boolean) as (Pick<UploadRowStateWithTitle,"title"|"excelRowNumber"> & { articleTitle: string })[],
     duplicatesAcknowledged,
     setDuplicatesAcknowledged,
+    uploadReport,
   };
 
   return <UploadDataContext.Provider value={ctx}>{children}</UploadDataContext.Provider>;

@@ -14,7 +14,6 @@ import {useInputData} from "@/lib/InputDataContext";
 import UploadStep from "@/components/steps/UploadStep";
 import SummaryStep from "@/components/steps/SummaryStep";
 import {useUploadData} from "@/lib/UploadDataContext";
-import {useUploadReports} from "@/lib/UploadReportsContext";
 
 const steps = [
   'Login via FigShare',
@@ -34,8 +33,7 @@ export default function AppFlow() {
   const {user, impersonationTarget} = useAuth();
   const {group} = useGroup();
   const {file, parserContext, rowChecksCompleted} = useInputData();
-  const { rows } = useUploadData();
-  const { reports } = useUploadReports();
+  const { rows, uploadReport } = useUploadData();
 
   useEffect(() => {
     setCompletedSteps(prev => ({
@@ -74,7 +72,7 @@ export default function AppFlow() {
         setActiveStep(6)
       }} />
       <UploadStep key={`UploadStep-${impersonationTarget?.id ?? user?.id}-${group?.id}`} openByDefault={rows.length > 0} />
-      <SummaryStep openByDefault={reports?.length > 0} />
+      <SummaryStep openByDefault={!!uploadReport} />
     </div>
   );
 }

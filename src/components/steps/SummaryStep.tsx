@@ -1,31 +1,31 @@
 'use client';
 
-import { useState} from 'react';
+import {useCallback, useState} from 'react';
 import StepPanel from '@/components/steps/StepPanel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Ban } from 'lucide-react';
-import {useUploadReports} from "@/lib/UploadReportsContext";
+import {useUploadData} from "@/lib/UploadDataContext";
 
 export default function SummaryStep({ openByDefault }: { openByDefault?: boolean }) {
-  const { reports, clearReports } = useUploadReports();
+  const { uploadReport } = useUploadData();
   const [downloaded, setDownloaded] = useState<boolean>(false);
 
-  const downloadSummary = (i: number) => {
-    if (reports.length < i) {
-      console.warn(`No report number ${i} available to download`);
+  const downloadSummary = useCallback(() => {
+    if (!uploadReport) {
+      console.warn(`No report available to download`);
       return;
     }
-    const csv = reports[i];
+    const csv = uploadReport as string;
     const blob = new Blob([csv], { type: 'text/csv' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'upload-summary.csv';
     link.click();
     setDownloaded(true);
-  };
+  }, [uploadReport]);
 
-  if (reports.length === 0) {
+  if (!uploadReport) {
     return (
       <StepPanel
         title="Download Summary"
@@ -39,12 +39,12 @@ export default function SummaryStep({ openByDefault }: { openByDefault?: boolean
 
   return (
     <StepPanel
-      title={`Download Summary (${reports.length} report${reports.length > 1 ? 's' : ''})`}
+      title={`Download Summary report`}
       status={downloaded? 'complete' : 'default'}
       openByDefault={openByDefault}
     >
       <div className="space-y-4">
-        {reports.reverse().map((report, index) => {
+        {[uploadReport].map((report, index) => {
           const [headers, ...rows] = report.split('\n');
           return <div key={index}>
             <Table>
@@ -79,15 +79,12 @@ export default function SummaryStep({ openByDefault }: { openByDefault?: boolean
             <Button
               key={index}
               className="w-full cursor-pointer"
-              onClick={() => downloadSummary(index)}
+              onClick={() => downloadSummary()}
             >
-              Download Summary of Upload {index + 1}
+              Download Summary
             </Button>
           </div>
         })}
-        {reports.length > 1 && (
-          <Button key="clear" onClick={() => clearReports()} className="cursor-pointer">Clear all</Button>
-        )}
       </div>
     </StepPanel>
   );

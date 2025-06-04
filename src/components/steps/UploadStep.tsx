@@ -9,10 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {CogIcon, Package, Ban, TriangleAlertIcon} from 'lucide-react';
 import {useInputData} from "@/lib/InputDataContext";
-import {useUploadReports} from "@/lib/UploadReportsContext";
 
 export default function UploadStep({ openByDefault }: { openByDefault?: boolean }) {
-  const { createReport } = useUploadReports();
   const { impersonationTarget } = useAuth();
   const {rows: parsedRows, fileChecks, markUploadComplete} = useInputData();
   const {
@@ -27,9 +25,8 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
 
   const upload = useCallback(async () => {
     await uploadAll();
-    createReport();
     markUploadComplete();
-  }, [uploadAll, createReport, markUploadComplete]);
+  }, [uploadAll, markUploadComplete]);
 
   const all_rows_valid = useMemo(() => {
     return parsedRows.every(row => row.status === "valid") && fileChecks.every(check => check.status === "valid");
