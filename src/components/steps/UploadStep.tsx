@@ -1,6 +1,6 @@
 'use client';
 
-import {useCallback, useMemo} from 'react';
+import {useCallback, useMemo, useState} from 'react';
 import StepPanel from '@/components/steps/StepPanel';
 import { useAuth } from '@/lib/AuthContext';
 import {UploadRowStateWithTitle, useUploadData} from '@/lib/UploadDataContext';
@@ -11,6 +11,8 @@ import {CogIcon, Package, Ban, TriangleAlertIcon} from 'lucide-react';
 import {useInputData} from "@/lib/InputDataContext";
 
 export default function UploadStep({ openByDefault }: { openByDefault?: boolean }) {
+  const ROW_SUMMARY_LENGTH = 10;
+  const [visibleRowCount, setVisibleRowCount] = useState(ROW_SUMMARY_LENGTH);
   const { impersonationTarget } = useAuth();
   const {rows: parsedRows, fileChecks, markUploadComplete} = useInputData();
   const {
@@ -100,6 +102,26 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
     return row.status
   }
 
+  // Figure out which rows to display.
+  // Prioritize rows with errors, then those that are uploading, then completed, then skipped.
+  // Always order by excelRowNumber.
+  // Limit to visibleRowCount.
+  let displayedRows = rows;
+  if (visibleRowCount < rows.length) {
+    const sortedRows = [...rows].sort((a, b) => {
+      if (a.status === 'error' && b.status !== 'error') return -1;
+      if (b.status === 'error' && a.status !== 'error') return 1;
+      if (a.status === 'uploading' && b.status !== 'uploading') return -1;
+      if (b.status === 'uploading' && a.status !== 'uploading') return 1;
+      if (a.status === 'completed' && b.status !== 'completed') return -1;
+      if (b.status === 'completed' && a.status !== 'completed') return 1;
+      if (a.status === 'skipped' && b.status !== 'skipped') return -1;
+      if (b.status === 'skipped' && a.status !== 'skipped') return 1;
+      return a.excelRowNumber - b.excelRowNumber; // Fallback to excelRowNumber
+    });
+    displayedRows = sortedRows.slice(0, visibleRowCount);
+  }
+
   return (
     <StepPanel
       title={summary.title}
@@ -125,7 +147,7 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map(row =>
+              {displayedRows.map(row =>
                 exactMatches.includes(row.title ?? "") ? (
                   <TableRow key={row.id} className="opacity-25 bg-gray-50">
                     <TableCell>{row.excelRowNumber}</TableCell>
@@ -191,6 +213,32 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
                     </TableCell>
                   </TableRow>
                 )
+              )}
+              {rows.length > visibleRowCount && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVisibleRowCount(Infinity)}
+                    >
+                      Show all {rows.length} rows
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )}
+              {rows.length <= visibleRowCount && rows.length > ROW_SUMMARY_LENGTH && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVisibleRowCount(ROW_SUMMARY_LENGTH)}
+                    >
+                      Show only {ROW_SUMMARY_LENGTH} rows
+                    </Button>
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
