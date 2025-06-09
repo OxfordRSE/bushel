@@ -305,7 +305,9 @@ export class DataRowParser {
           } else if (
             field.internal_settings.is_array ||
             field.settings?.is_multiple ||
-            field.field_type === "url"  // FigShare requires URLs to be arrays, even if not multiple
+            field.field_type === "url" || // FigShare requires URLs to be arrays, even if not multiple
+            field.field_type === "dropdown" ||
+            field.field_type === "dropdown_large_list"
           ) {
             value = input
               .split(/;\s*/)
