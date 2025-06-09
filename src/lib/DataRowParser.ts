@@ -323,6 +323,26 @@ export class DataRowParser {
                 );
               }
             }
+          } else if (field.field_type === "date") {
+            // Parse date, if it fails, throw an error
+            let date_string = input.replace(/^'/, "");  // We support ' to indicate non-Excel date values
+            const bce = /^-/.test(date_string);
+            if (bce) {
+              // If the date is BCE, we need to convert it to a negative year
+              date_string = date_string.replace(/'-/, "-");
+            }
+            const date = new Date(date_string);
+            if (bce) {
+              // If the date was BCE, we need to set the year to negative
+              date.setFullYear(-date.getFullYear());
+            }
+            if (isNaN(date.getTime())) {
+              throw new DataError(
+                `Invalid date for ${header}: ${input}`,
+                "InvalidInputData",
+              );
+            }
+            value = date;
           }
           if (field.internal_settings.schema) {
             try {

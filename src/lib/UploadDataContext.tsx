@@ -101,6 +101,8 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     return filtered.filter(match => !exactMatches.includes(match.title ?? ""));
   }, [parsedRows, articleTitles, articleTitleRegex, cleanArticleTitles, exactMatches]);
 
+  const date_to_string = (d: unknown) => (d as Date).toISOString().split('T')[0]; // Return YYYY-MM-DD format
+
   // Extract figshare upload data once parsing is complete
   const uploadData: UploadRowData[] = useMemo(() => {
     if (!inputDataParsingComplete || group?.id === undefined || parsedRows.some(r => r.status !== 'valid')) return [];
@@ -125,12 +127,13 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
       const customFields = fields?.filter(f => data[f.name] !== undefined && data[f.name] !== null)
         .map(f => {
           const value = data[f.name];
+          const fn = f.field_type === "date" ? date_to_string : String
           if (Array.isArray(value)) {
-            return {name: f.name, value: value.map(String)};
+            return {name: f.name, value: value.map(fn)};
           }
           return {
             name: f.name,
-            value: String(data[f.name])
+            value: fn(data[f.name])
           }
         });
 
