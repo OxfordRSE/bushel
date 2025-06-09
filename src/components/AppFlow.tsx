@@ -50,7 +50,7 @@ export default function AppFlow() {
 
   const markStepComplete = (index: number) => {
     if (!completedSteps[steps[index]]) {
-      setCompletedSteps({...completedSteps, [index]: true});
+      setCompletedSteps({...completedSteps, [steps[index]]: true});
     }
   };
 
