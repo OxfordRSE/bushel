@@ -75,3 +75,9 @@ Bushel can run on any platform that supports Next.js. The recommended route is t
 Secrets Manager, Fargate and other resources. You will need your FigShare
 credentials (`FIGSHARE_CLIENT_ID`/`FIGSHARE_CLIENT_SECRET`) available when deploying.
 
+The app can also be deployed to any other hosting provider that supports Next.js applications
+by following the deployment instructions for that provider.
+
+## License
+
+Bushel is distributed under the [GNU Affero General Public License](LICENSE).

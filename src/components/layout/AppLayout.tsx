@@ -27,9 +27,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer className="w-full px-4 py-2 bg-white border-t text-center text-sm text-gray-500">
-        <div className="max-w-4xl mx-auto">
-          &copy; {new Date().getFullYear()} Bushel. All rights reserved.
+      <footer className="w-full px-4 py-2 bg-white border-t text-center text-sm text-gray-500 flex justify-between items-center">
+        <div className="max-w-4xl">
+          &copy; {new Date().getFullYear()} Sustainable Digital Scholarship, University of Oxford.
+          <br />
+          Source code available on <a href="https://github.com/OxfordRSE/bushel" className="underline text-blue-600">GitHub</a>.
+          <br />
+          Available under the <a href="https://gnu.org/licenses/agpl-3.0.en.html" className="underline text-blue-600">AGPL-3.0</a> license.
+        </div>
+        <div className="my-2 ml-2 flex items-center gap-2">
+          <a href="https://www.sds.ox.ac.uk/home">
+            <Image src="/sds-logo.png" alt="Sustainable Digital Scholarship" height={96} width={96} className="inline-block" />
+          </a>
+          <a href="https://www.rse.ox.ac.uk/">
+            <Image src="/oxrse-logo.png" alt="Oxford Research Software Engineering" height={96} width={96} className="inline-block" />
+          </a>
+          <a href="https://www.ox.ack.uk/">
+            <Image src="/oxford-logo.png" alt="University of Oxford" height={96} width={96} className="inline-block" />
+          </a>
         </div>
       </footer>
     </div>

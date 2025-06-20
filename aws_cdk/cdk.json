@@ -17,8 +17,8 @@
     ]
   },
   "context": {
-    "projectName": "bushel-staging",
-    "deploymentDomain": "bushel-staging.oxrse.uk",
+    "projectName": "bushel",
+    "deploymentDomain": "bushel.oxrse.uk",
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,
     "@aws-cdk/core:target-partitions": [
