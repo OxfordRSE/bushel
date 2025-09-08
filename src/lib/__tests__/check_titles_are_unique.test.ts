@@ -15,7 +15,6 @@ describe('CheckTitlesAreUnique', () => {
     };
 
     const check = new CheckTitlesAreUnique(input);
-    check.check();
 
     expect(check.status).toBe('valid');
     expect(check.errors).toHaveLength(0);
@@ -29,7 +28,6 @@ describe('CheckTitlesAreUnique', () => {
     };
 
     const check = new CheckTitlesAreUnique(input);
-    check.check();
 
     expect(check.status).toBe('error');
     expect(check.errors).toHaveLength(1);
@@ -48,7 +46,6 @@ describe('CheckTitlesAreUnique', () => {
     };
 
     const check = new CheckTitlesAreUnique(input);
-    check.check();
 
     expect(check.status).toBe('error');
     expect(check.errors).toHaveLength(2);
@@ -67,7 +64,6 @@ describe('CheckTitlesAreUnique', () => {
     };
 
     const check = new CheckTitlesAreUnique(input);
-    check.check();
 
     expect(check.status).toBe('error');
     expect(check.errors).toHaveLength(1);

@@ -16,7 +16,6 @@ describe('CheckQuota', () => {
     };
 
     const check = new CheckQuota(data, 1000);
-    check.check();
 
     expect(check.status).toBe('valid');
     expect(check.errors).toHaveLength(0);
@@ -29,7 +28,6 @@ describe('CheckQuota', () => {
     };
 
     const check = new CheckQuota(data, 1000);
-    check.check();
 
     expect(check.status).toBe('valid');
     expect(check.errors).toHaveLength(0);
@@ -42,7 +40,6 @@ describe('CheckQuota', () => {
     };
 
     const check = new CheckQuota(data, 1000);
-    check.check();
 
     expect(check.status).toBe('error');
     expect(check.errors).toHaveLength(1);
@@ -60,7 +57,6 @@ describe('CheckQuota', () => {
     };
 
     const check = new CheckQuota(data, 500);
-    check.check();
 
     expect(check.status).toBe('valid');
   });
