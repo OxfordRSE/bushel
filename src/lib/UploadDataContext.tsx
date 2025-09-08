@@ -278,6 +278,58 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     })();
   }, [exactMatches, fetch, parserContext.rootDir, setUploadState, uploadData]);
 
+  /* Synchronous version of uploadRow for ordered uploads
+  Returns true if successful or skipped, false if error
+  */
+  const uploadRowSync = useCallback(async (id: DataRowId) =>{
+    const upload_row = uploadData.find(r => r.id === id);
+    if (!upload_row || exactMatches.includes(upload_row.data?.title ?? "")) return true;
+    
+    try {
+        const result = await fetch<FigshareArticleCreateResponse>(
+          'https://api.figshare.com/v2/account/articles',
+          {
+            method: 'POST',
+            body: upload_row.data,
+          }
+        );
+
+        if (upload_row.files?.length) {
+          await uploadFiles({
+            files: upload_row.files,
+            articleId: result.entity_id,
+            rootDir: parserContext.rootDir!,
+            patchedFetch: fetch,
+            onProgress: (status) => {
+              setUploadState(prev => ({
+                ...prev,
+                [id]: { ...prev[id], fileProgress: status }
+              }));
+              return false;
+            }
+          });
+        }
+
+        setUploadState(prev => ({
+          ...prev,
+          [id]: { ...prev[id], status: 'completed', completedAt: Date.now() }
+        }));
+      } catch (err: unknown) {
+        console.error(err);
+        setUploadState(prev => ({
+          ...prev,
+          [id]: {
+            ...prev[id],
+            status: 'error',
+            error: err instanceof Error ? err : new Error('Unknown error')
+          }
+        }));
+        return false;
+      }
+
+      return true;
+  }, [exactMatches, fetch, parserContext.rootDir, setUploadState, uploadData]);
+
   const uploadAll = useCallback(async () => {
     await Promise.allSettled(uploadData.map(r => r.id).map(uploadRow));
   }, [uploadData, uploadRow]);
@@ -293,9 +345,9 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     );
     
     for (let i = 0; i < rowsToUpload.length; i++) {
-      await uploadRow(rowsToUpload[i]);
+      if (!await uploadRowSync(rowsToUpload[i])) break; // Stop on first error
     }
-  }, [parsedRows, uploadData, uploadRow]);
+  }, [parsedRows, uploadData, uploadRowSync]);
 
   const cancelRow = useCallback((id: DataRowId) => {
     const cancel = uploadControllers.current.get(id);
