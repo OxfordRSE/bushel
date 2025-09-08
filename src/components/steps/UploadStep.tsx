@@ -9,14 +9,18 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {CogIcon, Package, Ban, TriangleAlertIcon} from 'lucide-react';
 import {useInputData} from "@/lib/InputDataContext";
+import {Checkbox} from "@/components/ui/checkbox";
+import {Label} from "@/components/ui/label";
 
 export default function UploadStep({ openByDefault }: { openByDefault?: boolean }) {
   const ROW_SUMMARY_LENGTH = 10;
   const [visibleRowCount, setVisibleRowCount] = useState(ROW_SUMMARY_LENGTH);
+  const [createInOrder, setCreateInOrder] = useState(false);
   const { impersonationTarget } = useAuth();
   const {rows: parsedRows, fileChecks, markUploadComplete} = useInputData();
   const {
     rows,
+    uploadInOrder,
     uploadAll,
     cancelAll,
     cancelRow,
@@ -26,9 +30,13 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
   } = useUploadData();
 
   const upload = useCallback(async () => {
-    await uploadAll();
+    if (createInOrder) {
+      await uploadInOrder();
+    } else {
+      await uploadAll();
+    }
     markUploadComplete();
-  }, [uploadAll, markUploadComplete]);
+  }, [uploadAll, markUploadComplete, uploadInOrder, createInOrder]);
 
   const all_rows_valid = useMemo(() => {
     return parsedRows.every(row => row.status === "valid") && fileChecks.every(check => check.status === "valid");
@@ -257,6 +265,21 @@ export default function UploadStep({ openByDefault }: { openByDefault?: boolean 
             Cancel
           </Button>
         </div>
+
+        <div className="flex items-start gap-3">
+          <Checkbox
+            className="cursor-pointer"
+            checked={createInOrder}
+            onCheckedChange={(checked) => setCreateInOrder(!!checked)}
+          />
+          <div className="grid gap-2">
+            <Label htmlFor="terms-2">Create records in order</Label>
+            <p className="text-muted-foreground text-sm">
+              Creating records in order is slower, but guarantees records are created in the order they appear in the spreadsheet.
+            </p>
+          </div>
+        </div>
+
       </div>
     </StepPanel>
   );
