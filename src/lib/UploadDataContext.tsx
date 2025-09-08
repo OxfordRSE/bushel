@@ -47,6 +47,7 @@ interface UploadDataContextType {
   getRow: (id: DataRowId) => UploadRowStateWithTitle | undefined;
   uploadRow: (id: DataRowId) => Promise<void>;
   uploadAll: () => Promise<void>;
+  uploadInOrder: () => Promise<void>;
   cancelRow: (id: DataRowId) => void;
   cancelAll: () => void;
   exactMatches: string[];
@@ -280,6 +281,21 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   const uploadAll = useCallback(async () => {
     await Promise.allSettled(uploadData.map(r => r.id).map(uploadRow));
   }, [uploadData, uploadRow]);
+  
+  const uploadInOrder = useCallback(async () => {
+    const rowsToUpload = uploadData.map(r => r.id).sort(
+      (a, b) => {
+        const rowA = parsedRows.find(r => r.id === a);
+        const rowB = parsedRows.find(r => r.id === b);
+        if (!rowA || !rowB) return 0;
+        return rowA.excelRowNumber - rowB.excelRowNumber;
+      }
+    );
+    
+    for (let i = 0; i < rowsToUpload.length; i++) {
+      await uploadRow(rowsToUpload[i]);
+    }
+  }, [parsedRows, uploadData, uploadRow]);
 
   const cancelRow = useCallback((id: DataRowId) => {
     const cancel = uploadControllers.current.get(id);
@@ -318,6 +334,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     getRow,
     uploadRow,
     uploadAll,
+    uploadInOrder,
     cancelRow,
     cancelAll,
     exactMatches,
