@@ -1,21 +1,38 @@
-'use client';
+"use client";
 
-import {createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState,} from 'react';
-import {useInputData} from './InputDataContext';
-import {DataRowId, DataRowStatus} from './DataRowParser';
-import {uploadFiles, UploadFileStatus} from "@/lib/figshare-upload-files";
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useInputData } from "./InputDataContext";
+import { DataRowId, DataRowStatus } from "./DataRowParser";
+import { uploadFiles, UploadFileStatus } from "@/lib/figshare-upload-files";
 import {
   AuthorDetails,
   FigshareArticleCreate,
-  FigshareArticleCreateResponse, FundingCreate,
-  RelatedMaterial
+  FigshareArticleCreateResponse,
+  FundingCreate,
+  RelatedMaterial,
 } from "@/lib/types/figshare-api";
-import {useImmer} from "use-immer";
-import {useGroup} from "@/lib/GroupContext";
-import {useAuth} from "@/lib/AuthContext";
-import {cleanString, fuzzyCoerce, stringToFuzzyRegex} from "@/lib/utils";
+import { useImmer } from "use-immer";
+import { useGroup } from "@/lib/GroupContext";
+import { useAuth } from "@/lib/AuthContext";
+import { cleanString, fuzzyCoerce, stringToFuzzyRegex } from "@/lib/utils";
 
-type UploadStatus = 'pending' | 'uploading' | 'created' | 'completed' | 'error' | 'skipped' | 'cancelled';
+type UploadStatus =
+  | "pending"
+  | "uploading"
+  | "created"
+  | "completed"
+  | "error"
+  | "skipped"
+  | "cancelled";
 
 export interface UploadRowData {
   id: DataRowId;
@@ -40,14 +57,16 @@ export type UploadRowStateWithTitle = UploadRowState & {
 
 export type csv = string;
 
-type FuzzyMatch = (Pick<UploadRowStateWithTitle,"title"|"excelRowNumber"> & { articleTitle: string })
+type FuzzyMatch = Pick<UploadRowStateWithTitle, "title" | "excelRowNumber"> & {
+  articleTitle: string;
+};
 
 interface UploadDataContextType {
   rows: UploadRowStateWithTitle[];
   getRow: (id: DataRowId) => UploadRowStateWithTitle | undefined;
   uploadRow: (id: DataRowId) => Promise<void>;
   uploadAll: () => Promise<void>;
-  uploadInOrder: () => Promise<void>;
+  uploadInOrder: (rateLimitMs: number) => Promise<void>;
   cancelRow: (id: DataRowId) => void;
   cancelAll: () => void;
   exactMatches: string[];
@@ -57,22 +76,33 @@ interface UploadDataContextType {
   uploadReport?: csv;
 }
 
-const UploadDataContext = createContext<UploadDataContextType | undefined>(undefined);
+const UploadDataContext = createContext<UploadDataContextType | undefined>(
+  undefined,
+);
 
 export function UploadDataProvider({ children }: { children: ReactNode }) {
-  const [uploadState, setUploadState] = useImmer<Record<DataRowStatus["id"], UploadRowState>>({});
-  const {group, fields, articles} = useGroup();
-  const {institutionLicenses, institutionCategories, fetch} = useAuth();
-  const { rows: parsedRows, getParser, completed: inputDataParsingComplete, parserContext } = useInputData();
-  const articleTitles = useMemo(() => articles?.map(article => article.title) || [], [articles]);
+  const [uploadState, setUploadState] = useImmer<
+    Record<DataRowStatus["id"], UploadRowState>
+  >({});
+  const { group, fields, articles } = useGroup();
+  const { institutionLicenses, institutionCategories, fetch } = useAuth();
+  const {
+    rows: parsedRows,
+    getParser,
+    completed: inputDataParsingComplete,
+    parserContext,
+  } = useInputData();
+  const articleTitles = useMemo(
+    () => articles?.map((article) => article.title) || [],
+    [articles],
+  );
   const [duplicatesAcknowledged, setDuplicatesAcknowledged] = useState(false);
-
 
   // Utilities for fuzzy matching titles
   const exactMatches = useMemo(() => {
     return parsedRows
-      .filter(r => r.title && articleTitles.includes(r.title))
-      .map(r => r.title)
+      .filter((r) => r.title && articleTitles.includes(r.title))
+      .map((r) => r.title)
       .filter(Boolean) as string[];
   }, [parsedRows, articleTitles]);
 
@@ -85,28 +115,47 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   }, [cleanArticleTitles]);
 
   const fuzzyWarnings = useMemo(() => {
-    const mapped = parsedRows.map(r => {
-      if (!r.title)
-        return null;
-      const fuzzy = fuzzyCoerce(r.title, articleTitles, true, articleTitleRegex);
-      const matchIndex = cleanArticleTitles.findIndex(title => title === fuzzy);
-      if (matchIndex === -1)
-        return null;
+    const mapped = parsedRows.map((r) => {
+      if (!r.title) return null;
+      const fuzzy = fuzzyCoerce(
+        r.title,
+        articleTitles,
+        true,
+        articleTitleRegex,
+      );
+      const matchIndex = cleanArticleTitles.findIndex(
+        (title) => title === fuzzy,
+      );
+      if (matchIndex === -1) return null;
       return {
         excelRowNumber: r.excelRowNumber,
         title: r.title,
         articleTitle: fuzzy,
       };
-    })
+    });
     const filtered = mapped.filter(Boolean) as FuzzyMatch[];
-    return filtered.filter(match => !exactMatches.includes(match.title ?? ""));
-  }, [parsedRows, articleTitles, articleTitleRegex, cleanArticleTitles, exactMatches]);
+    return filtered.filter(
+      (match) => !exactMatches.includes(match.title ?? ""),
+    );
+  }, [
+    parsedRows,
+    articleTitles,
+    articleTitleRegex,
+    cleanArticleTitles,
+    exactMatches,
+  ]);
 
-  const date_to_string = (d: unknown) => (d as Date).toISOString().split('T')[0]; // Return YYYY-MM-DD format
+  const date_to_string = (d: unknown) =>
+    (d as Date).toISOString().split("T")[0]; // Return YYYY-MM-DD format
 
   // Extract figshare upload data once parsing is complete
   const uploadData: UploadRowData[] = useMemo(() => {
-    if (!inputDataParsingComplete || group?.id === undefined || parsedRows.some(r => r.status !== 'valid')) return [];
+    if (
+      !inputDataParsingComplete ||
+      group?.id === undefined ||
+      parsedRows.some((r) => r.status !== "valid")
+    )
+      return [];
     return parsedRows.map((r) => {
       let data;
       try {
@@ -116,26 +165,31 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
       }
       if (!data) return { id: r.id, files: [] };
       const categories = (data?.categories as string[])
-        .map(c => institutionCategories.find(x => x.title === c)?.source_id)
-        .filter(c => c !== undefined);
-      if (categories.some(c => c === undefined)) {
-        throw new Error(`Row ${r.id} has invalid categories: ${(data.categories as string[]).filter(c => !institutionCategories.some(x => x.title === c)).join(',')}`);
+        .map((c) => institutionCategories.find((x) => x.title === c)?.source_id)
+        .filter((c) => c !== undefined);
+      if (categories.some((c) => c === undefined)) {
+        throw new Error(
+          `Row ${r.id} has invalid categories: ${(data.categories as string[]).filter((c) => !institutionCategories.some((x) => x.title === c)).join(",")}`,
+        );
       }
-      const license = institutionLicenses.find(x => x.name === data?.license)?.value;
+      const license = institutionLicenses.find(
+        (x) => x.name === data?.license,
+      )?.value;
       if (institutionLicenses.length > 0 && license === undefined) {
         throw new Error(`Row ${r.id} has invalid license: ${data?.license}`);
       }
-      const customFields = fields?.filter(f => data[f.name] !== undefined && data[f.name] !== null)
-        .map(f => {
+      const customFields = fields
+        ?.filter((f) => data[f.name] !== undefined && data[f.name] !== null)
+        .map((f) => {
           const value = data[f.name];
-          const fn = f.field_type === "date" ? date_to_string : String
+          const fn = f.field_type === "date" ? date_to_string : String;
           if (Array.isArray(value)) {
-            return {name: f.name, value: value.map(fn)};
+            return { name: f.name, value: value.map(fn) };
           }
           return {
             name: f.name,
-            value: fn(data[f.name])
-          }
+            value: fn(data[f.name]),
+          };
         });
 
       return {
@@ -145,153 +199,178 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
           title: data!.title as string,
           description: data!.description as string,
           keywords: data!.keywords as string[],
-          references: data!.references as string[] ?? [],
-          related_materials: data!.related_materials as RelatedMaterial[] ?? [],
+          references: (data!.references as string[]) ?? [],
+          related_materials:
+            (data!.related_materials as RelatedMaterial[]) ?? [],
           categories_by_source_id: categories,
-          authors: data!.authors as AuthorDetails[] ?? [],
+          authors: (data!.authors as AuthorDetails[]) ?? [],
           custom_fields_list: customFields,
           defined_type: data!.item_type as string,
-          funding_list: data!.funding as FundingCreate[] ?? [],
+          funding_list: (data!.funding as FundingCreate[]) ?? [],
           license,
           group_id: group.id,
         },
         files: data!.files as string[],
-      }
+      };
     });
-  }, [inputDataParsingComplete, group?.id, parsedRows, getParser, institutionLicenses, fields, institutionCategories]);
+  }, [
+    inputDataParsingComplete,
+    group?.id,
+    parsedRows,
+    getParser,
+    institutionLicenses,
+    fields,
+    institutionCategories,
+  ]);
 
   // Init upload state
   useEffect(() => {
     if (!inputDataParsingComplete) setUploadState({});
     setUploadState(
-      Object.fromEntries(parsedRows.map((r) => ([
-        r.id,
-        {
-          id: r.id,
-          excelRowNumber: r.excelRowNumber,
-          status: (exactMatches.includes(r.title ?? "") ? 'skipped' : 'pending') as UploadStatus,
-          fileProgress: undefined,
-        }
-      ])))
+      Object.fromEntries(
+        parsedRows.map((r) => [
+          r.id,
+          {
+            id: r.id,
+            excelRowNumber: r.excelRowNumber,
+            status: (exactMatches.includes(r.title ?? "")
+              ? "skipped"
+              : "pending") as UploadStatus,
+            fileProgress: undefined,
+          },
+        ]),
+      ),
     );
   }, [exactMatches, inputDataParsingComplete, parsedRows, setUploadState]);
 
-  const add_title = useCallback((row: UploadRowState) => {
-    const parsedRow = parsedRows.find(r => r.id === row.id);
-    if (!parsedRow) return {...row, title: undefined};
-    return {
-      ...row,
-      title: parsedRow.title,
-    };
-  }, [parsedRows]);
+  const add_title = useCallback(
+    (row: UploadRowState) => {
+      const parsedRow = parsedRows.find((r) => r.id === row.id);
+      if (!parsedRow) return { ...row, title: undefined };
+      return {
+        ...row,
+        title: parsedRow.title,
+      };
+    },
+    [parsedRows],
+  );
 
   const rowsWithTitle = useMemo(() => {
-    console.debug('Updating rowsWithTitle', Object.values(uploadState).map(add_title));
+    console.debug(
+      "Updating rowsWithTitle",
+      Object.values(uploadState).map(add_title),
+    );
     return Object.values(uploadState).map(add_title);
   }, [add_title, uploadState]);
 
   const getRow = useCallback(
     (id: DataRowId) => add_title(uploadState[id]),
-    [add_title, uploadState]
+    [add_title, uploadState],
   );
 
   const uploadControllers = useRef(new Map<DataRowId, () => void>());
 
-  const uploadRow = useCallback((id: DataRowId) => {
-    const upload_row = uploadData.find(r => r.id === id);
-    if (!upload_row || exactMatches.includes(upload_row.data?.title ?? "")) return Promise.resolve();
-    let cancelled = false;
+  const uploadRow = useCallback(
+    (id: DataRowId) => {
+      const upload_row = uploadData.find((r) => r.id === id);
+      if (!upload_row || exactMatches.includes(upload_row.data?.title ?? ""))
+        return Promise.resolve();
+      let cancelled = false;
 
-    const cancel = () => {
-      cancelled = true;
-      setUploadState(prev => ({
+      const cancel = () => {
+        cancelled = true;
+        setUploadState((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], status: "cancelled" },
+        }));
+      };
+      uploadControllers.current.set(id, cancel);
+
+      setUploadState((prev) => ({
         ...prev,
-        [id]: {...prev[id], status: 'cancelled'}
+        [id]: {
+          ...prev[id],
+          status: "uploading",
+          error: undefined,
+          result: undefined,
+          startedAt: Date.now(),
+        },
       }));
-    };
-    uploadControllers.current.set(id, cancel);
 
-    setUploadState(prev => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        status: 'uploading',
-        error: undefined,
-        result: undefined,
-        startedAt: Date.now(),
-      }
-    }));
+      return (async () => {
+        try {
+          if (cancelled) return cancel();
 
-    return (async () => {
-      try {
-        if (cancelled) return cancel();
+          const result = await fetch<FigshareArticleCreateResponse>(
+            "https://api.figshare.com/v2/account/articles",
+            {
+              method: "POST",
+              body: upload_row.data,
+            },
+          );
 
-        const result = await fetch<FigshareArticleCreateResponse>(
-          'https://api.figshare.com/v2/account/articles',
-          {
-            method: 'POST',
-            body: upload_row.data,
+          if (cancelled) return cancel();
+
+          setUploadState((prev) => ({
+            ...prev,
+            [id]: { ...prev[id], status: "created", result },
+          }));
+
+          if (upload_row.files?.length) {
+            await uploadFiles({
+              files: upload_row.files,
+              articleId: result.entity_id,
+              rootDir: parserContext.rootDir!,
+              patchedFetch: fetch,
+              onProgress: (status) => {
+                setUploadState((prev) => ({
+                  ...prev,
+                  [id]: { ...prev[id], fileProgress: status },
+                }));
+                return cancelled;
+              },
+            });
           }
-        );
 
-        if (cancelled) return cancel();
+          if (cancelled) return cancel();
 
-        setUploadState(prev => ({
-          ...prev,
-          [id]: { ...prev[id], status: 'created', result }
-        }));
-
-        if (upload_row.files?.length) {
-          await uploadFiles({
-            files: upload_row.files,
-            articleId: result.entity_id,
-            rootDir: parserContext.rootDir!,
-            patchedFetch: fetch,
-            onProgress: (status) => {
-              setUploadState(prev => ({
-                ...prev,
-                [id]: { ...prev[id], fileProgress: status }
-              }));
-              return cancelled;
-            }
-          });
+          setUploadState((prev) => ({
+            ...prev,
+            [id]: { ...prev[id], status: "completed", completedAt: Date.now() },
+          }));
+        } catch (err: unknown) {
+          console.error(err);
+          setUploadState((prev) => ({
+            ...prev,
+            [id]: {
+              ...prev[id],
+              status: "error",
+              error: err instanceof Error ? err : new Error("Unknown error"),
+            },
+          }));
         }
-
-        if (cancelled) return cancel();
-
-        setUploadState(prev => ({
-          ...prev,
-          [id]: { ...prev[id], status: 'completed', completedAt: Date.now() }
-        }));
-      } catch (err: unknown) {
-        console.error(err);
-        setUploadState(prev => ({
-          ...prev,
-          [id]: {
-            ...prev[id],
-            status: 'error',
-            error: err instanceof Error ? err : new Error('Unknown error')
-          }
-        }));
-      }
-      uploadControllers.current.delete(id);
-    })();
-  }, [exactMatches, fetch, parserContext.rootDir, setUploadState, uploadData]);
+        uploadControllers.current.delete(id);
+      })();
+    },
+    [exactMatches, fetch, parserContext.rootDir, setUploadState, uploadData],
+  );
 
   /* Synchronous version of uploadRow for ordered uploads
   Returns true if successful or skipped, false if error
   */
-  const uploadRowSync = useCallback(async (id: DataRowId) =>{
-    const upload_row = uploadData.find(r => r.id === id);
-    if (!upload_row || exactMatches.includes(upload_row.data?.title ?? "")) return true;
-    
-    try {
+  const uploadRowSync = useCallback(
+    async (id: DataRowId) => {
+      const upload_row = uploadData.find((r) => r.id === id);
+      if (!upload_row || exactMatches.includes(upload_row.data?.title ?? ""))
+        return true;
+
+      try {
         const result = await fetch<FigshareArticleCreateResponse>(
-          'https://api.figshare.com/v2/account/articles',
+          "https://api.figshare.com/v2/account/articles",
           {
-            method: 'POST',
+            method: "POST",
             body: upload_row.data,
-          }
+          },
         );
 
         if (upload_row.files?.length) {
@@ -301,53 +380,64 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
             rootDir: parserContext.rootDir!,
             patchedFetch: fetch,
             onProgress: (status) => {
-              setUploadState(prev => ({
+              setUploadState((prev) => ({
                 ...prev,
-                [id]: { ...prev[id], fileProgress: status }
+                [id]: { ...prev[id], fileProgress: status },
               }));
               return false;
-            }
+            },
           });
         }
 
-        setUploadState(prev => ({
+        setUploadState((prev) => ({
           ...prev,
-          [id]: { ...prev[id], status: 'completed', completedAt: Date.now() }
+          [id]: { ...prev[id], status: "completed", completedAt: Date.now() },
         }));
       } catch (err: unknown) {
         console.error(err);
-        setUploadState(prev => ({
+        setUploadState((prev) => ({
           ...prev,
           [id]: {
             ...prev[id],
-            status: 'error',
-            error: err instanceof Error ? err : new Error('Unknown error')
-          }
+            status: "error",
+            error: err instanceof Error ? err : new Error("Unknown error"),
+          },
         }));
         return false;
       }
 
       return true;
-  }, [exactMatches, fetch, parserContext.rootDir, setUploadState, uploadData]);
+    },
+    [exactMatches, fetch, parserContext.rootDir, setUploadState, uploadData],
+  );
 
   const uploadAll = useCallback(async () => {
-    await Promise.allSettled(uploadData.map(r => r.id).map(uploadRow));
+    await Promise.allSettled(uploadData.map((r) => r.id).map(uploadRow));
   }, [uploadData, uploadRow]);
-  
-  const uploadInOrder = useCallback(async () => {
-    const rowsToUpload = uploadData.map(r => r.id).sort(
-      (a, b) => {
-        const rowA = parsedRows.find(r => r.id === a);
-        const rowB = parsedRows.find(r => r.id === b);
-        if (!rowA || !rowB) return 0;
-        return rowA.excelRowNumber - rowB.excelRowNumber;
+
+  const wait = async (ms: number) =>
+    await new Promise((resolve) => setTimeout(resolve, ms));
+
+  const uploadInOrder = useCallback(
+    async (waitTimeMs: number = 1000) => {
+      const rowsToUpload = uploadData
+        .map((r) => r.id)
+        .sort((a, b) => {
+          const rowA = parsedRows.find((r) => r.id === a);
+          const rowB = parsedRows.find((r) => r.id === b);
+          if (!rowA || !rowB) return 0;
+          return rowA.excelRowNumber - rowB.excelRowNumber;
+        });
+
+      for (let i = 0; i < rowsToUpload.length; i++) {
+        if (!(await uploadRowSync(rowsToUpload[i]))) break; // Stop on first error
+        if (waitTimeMs > 0) {
+          await wait(waitTimeMs);
+        }
       }
-    );
-    
-    for (let i = 0; i < rowsToUpload.length; i++) {
-      if (!await uploadRowSync(rowsToUpload[i])) break; // Stop on first error
-    }
-  }, [parsedRows, uploadData, uploadRowSync]);
+    },
+    [parsedRows, uploadData, uploadRowSync],
+  );
 
   const cancelRow = useCallback((id: DataRowId) => {
     const cancel = uploadControllers.current.get(id);
@@ -358,27 +448,39 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const cancelAll = useCallback(() => {
-    uploadControllers.current.forEach(cancel => cancel());
+    uploadControllers.current.forEach((cancel) => cancel());
   }, []);
 
   const uploadReport = useMemo(() => {
-    if (!rowsWithTitle.length) return '';
-    const headers = ['RowID', 'Status', 'Title', 'Error', 'Warnings', "DurationSec", "Started", "Completed"];
-    const csv_rows = rowsWithTitle.map(row => {
-      const warnings = row.result?.warnings?.map(w => JSON.stringify(w)).join('; ') ?? '';
-      const error = JSON.stringify(row.error?.message) ?? '';
+    if (!rowsWithTitle.length) return "";
+    const headers = [
+      "RowID",
+      "Status",
+      "Title",
+      "Error",
+      "Warnings",
+      "DurationSec",
+      "Started",
+      "Completed",
+    ];
+    const csv_rows = rowsWithTitle.map((row) => {
+      const warnings =
+        row.result?.warnings?.map((w) => JSON.stringify(w)).join("; ") ?? "";
+      const error = JSON.stringify(row.error?.message) ?? "";
       return [
         row.id,
         row.status,
         row.title,
         error,
         warnings,
-        row.completedAt && row.startedAt ? ((row.completedAt - row.startedAt) / 1000).toFixed(2) : '',
-        row.startedAt? new Date(row.startedAt).toISOString() : '',
-        row.completedAt? new Date(row.completedAt).toISOString() : '',
-      ].join(',');
+        row.completedAt && row.startedAt
+          ? ((row.completedAt - row.startedAt) / 1000).toFixed(2)
+          : "",
+        row.startedAt ? new Date(row.startedAt).toISOString() : "",
+        row.completedAt ? new Date(row.completedAt).toISOString() : "",
+      ].join(",");
     });
-    return [headers.join(','), ...csv_rows].join('\n');
+    return [headers.join(","), ...csv_rows].join("\n");
   }, [rowsWithTitle]);
 
   const ctx: UploadDataContextType = {
@@ -390,20 +492,31 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     cancelRow,
     cancelAll,
     exactMatches,
-    fuzzyWarnings: fuzzyWarnings.map(w => ({
-      ...w,
-      title: parsedRows.find(r => r.excelRowNumber === w.excelRowNumber)?.title,
-    })).filter(Boolean) as (Pick<UploadRowStateWithTitle,"title"|"excelRowNumber"> & { articleTitle: string })[],
+    fuzzyWarnings: fuzzyWarnings
+      .map((w) => ({
+        ...w,
+        title: parsedRows.find((r) => r.excelRowNumber === w.excelRowNumber)
+          ?.title,
+      }))
+      .filter(Boolean) as (Pick<
+      UploadRowStateWithTitle,
+      "title" | "excelRowNumber"
+    > & { articleTitle: string })[],
     duplicatesAcknowledged,
     setDuplicatesAcknowledged,
     uploadReport,
   };
 
-  return <UploadDataContext.Provider value={ctx}>{children}</UploadDataContext.Provider>;
+  return (
+    <UploadDataContext.Provider value={ctx}>
+      {children}
+    </UploadDataContext.Provider>
+  );
 }
 
 export function useUploadData() {
   const ctx = useContext(UploadDataContext);
-  if (!ctx) throw new Error('useUploadData must be used within UploadDataProvider');
+  if (!ctx)
+    throw new Error("useUploadData must be used within UploadDataProvider");
   return ctx;
 }
