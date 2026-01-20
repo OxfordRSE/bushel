@@ -27,6 +27,7 @@ import { cleanString, fuzzyCoerce, stringToFuzzyRegex } from "@/lib/utils";
 
 type UploadStatus =
   | "pending"
+  | "waiting"
   | "uploading"
   | "created"
   | "completed"
@@ -66,7 +67,10 @@ interface UploadDataContextType {
   getRow: (id: DataRowId) => UploadRowStateWithTitle | undefined;
   uploadRow: (id: DataRowId) => Promise<void>;
   uploadAll: () => Promise<void>;
-  uploadInOrder: (rateLimitMs: number) => Promise<void>;
+  uploadInOrder: (
+    rateLimitMs: number,
+    fileRateLimitMs: number,
+  ) => Promise<void>;
   cancelRow: (id: DataRowId) => void;
   cancelAll: () => void;
   exactMatches: string[];
@@ -359,12 +363,22 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
   Returns true if successful or skipped, false if error
   */
   const uploadRowSync = useCallback(
-    async (id: DataRowId) => {
+    async (
+      id: DataRowId,
+      waitTime: number = 0,
+      fileUploadDelayTime: number = 0,
+    ) => {
       const upload_row = uploadData.find((r) => r.id === id);
       if (!upload_row || exactMatches.includes(upload_row.data?.title ?? ""))
         return true;
 
       try {
+        if (waitTime) {
+          setUploadState((prev) => ({ ...prev, status: "waiting" }));
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        }
+        setUploadState((prev) => ({ ...prev, status: "uploading" }));
+
         const result = await fetch<FigshareArticleCreateResponse>(
           "https://api.figshare.com/v2/account/articles",
           {
@@ -379,6 +393,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
             articleId: result.entity_id,
             rootDir: parserContext.rootDir!,
             patchedFetch: fetch,
+            rateLimitDelayMs: fileUploadDelayTime,
             onProgress: (status) => {
               setUploadState((prev) => ({
                 ...prev,
@@ -415,11 +430,8 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
     await Promise.allSettled(uploadData.map((r) => r.id).map(uploadRow));
   }, [uploadData, uploadRow]);
 
-  const wait = async (ms: number) =>
-    await new Promise((resolve) => setTimeout(resolve, ms));
-
   const uploadInOrder = useCallback(
-    async (waitTimeMs: number = 1000) => {
+    async (waitTimeMs: number = 1000, fileWaitTimeMs: number = 1000) => {
       const rowsToUpload = uploadData
         .map((r) => r.id)
         .sort((a, b) => {
@@ -430,10 +442,14 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
         });
 
       for (let i = 0; i < rowsToUpload.length; i++) {
-        if (!(await uploadRowSync(rowsToUpload[i]))) break; // Stop on first error
-        if (waitTimeMs > 0) {
-          await wait(waitTimeMs);
-        }
+        if (
+          !(await uploadRowSync(
+            rowsToUpload[i],
+            i > 0 ? waitTimeMs : 0,
+            fileWaitTimeMs,
+          ))
+        )
+          break; // Stop on first error
       }
     },
     [parsedRows, uploadData, uploadRowSync],

@@ -35,8 +35,8 @@ export default function UploadStep({
 }) {
   const ROW_SUMMARY_LENGTH = 10;
   const [visibleRowCount, setVisibleRowCount] = useState(ROW_SUMMARY_LENGTH);
-  const [createInOrder, setCreateInOrder] = useState(false);
   const [rateLimitMs, setRateLimitMs] = useState<number>(1000);
+  const [fileRateLimitMs, setFileRateLimitMs] = useState<number>(1000);
   const { impersonationTarget } = useAuth();
   const { rows: parsedRows, fileChecks, markUploadComplete } = useInputData();
   const {
@@ -51,18 +51,18 @@ export default function UploadStep({
   } = useUploadData();
 
   const upload = useCallback(async () => {
-    if (createInOrder) {
-      await uploadInOrder(rateLimitMs);
+    if (rateLimitMs > 0) {
+      await uploadInOrder(rateLimitMs, fileRateLimitMs);
     } else {
       await uploadAll();
     }
     markUploadComplete();
   }, [
-    uploadAll,
+    rateLimitMs,
     markUploadComplete,
     uploadInOrder,
-    createInOrder,
-    rateLimitMs,
+    fileRateLimitMs,
+    uploadAll,
   ]);
 
   const all_rows_valid = useMemo(() => {
@@ -349,17 +349,24 @@ export default function UploadStep({
         </div>
 
         <div className="flex items-start gap-3">
-          <Checkbox
+          <Input
             className="cursor-pointer"
-            checked={createInOrder}
-            onCheckedChange={(checked) => setCreateInOrder(!!checked)}
-            id="createInOrder"
+            type="number"
+            value={rateLimitMs}
+            onChange={(event) => {
+              const v = Math.max(Number(event.currentTarget.value), 0);
+              setRateLimitMs(isNaN(v) ? 0 : v);
+            }}
+            id="rateLimitMs"
           />
           <div className="grid gap-2">
-            <Label htmlFor="createInOrder">Create records in order</Label>
+            <Label htmlFor="rateLimitMs">Delay after each upload (ms)</Label>
             <p className="text-muted-foreground text-sm">
-              Creating records in order is slower, but guarantees records are
-              created in the order they appear in the spreadsheet.
+              FigShare rate limits API calls, so including a delay after each
+              record will prevent FigShare blocking uploads. Using a rate limit
+              means records are always created in the order in which they appear
+              in the spreadsheet, so set this to 1 if you want ordered record
+              creation with minimal delay.
             </p>
           </div>
         </div>
@@ -368,17 +375,22 @@ export default function UploadStep({
           <Input
             className="cursor-pointer"
             type="number"
-            value={rateLimitMs}
-            onChange={(event) =>
-              setRateLimitMs(Number(event.currentTarget.value))
-            }
-            id="rateLimitMs"
+            value={fileRateLimitMs}
+            onChange={(event) => {
+              const v = Math.max(Number(event.currentTarget.value), 0);
+              setFileRateLimitMs(isNaN(v) ? 0 : v);
+            }}
+            id="fileRateLimitMs"
           />
           <div className="grid gap-2">
-            <Label htmlFor="rateLimitMs">Delay after each upload (ms)</Label>
+            <Label htmlFor="fileRateLimitMs">
+              Delay after each upload (ms)
+            </Label>
             <p className="text-muted-foreground text-sm">
-              FigShare rate limits API calls, so including a delay after each
-              record will prevent FigShare blocking uploads.
+              FigShare rate limits API calls during file parts upload, so
+              including a delay after each file will prevent FigShare blocking
+              uploads when records have multiple files, or files have multiple
+              parts.
             </p>
           </div>
         </div>
