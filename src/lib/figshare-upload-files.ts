@@ -1,6 +1,7 @@
 import { createMD5 } from "hash-wasm";
 import {
-  FigshareFilePart, FigshareInitiateUpload,
+  FigshareFilePart,
+  FigshareInitiateUpload,
   FigshareCreateFile,
   FigshareUploadStart,
 } from "@/lib/types/figshare-api";
@@ -22,6 +23,7 @@ type UploadFilesOptions = {
   rootDir: FileSystemDirectoryHandle;
   articleId: number;
   patchedFetch: AuthState["fetch"];
+  rateLimitDelayMs?: number;
   // Return `true` to stop the upload process
   onProgress?: (status: UploadFileStatus) => void | boolean;
 };
@@ -42,16 +44,17 @@ async function calculateFileMd5(file: File): Promise<string> {
 }
 
 export async function uploadFiles({
-                                    files,
-                                    rootDir,
-                                    articleId,
-                                    patchedFetch,
-                                    onProgress,
-                                  }: UploadFilesOptions): Promise<void> {
+  files,
+  rootDir,
+  articleId,
+  patchedFetch,
+  rateLimitDelayMs,
+  onProgress,
+}: UploadFilesOptions): Promise<void> {
   // Check actual API use support
   if (
-      typeof FileSystemHandle === "undefined" ||
-      !("getFile" in FileSystemFileHandle.prototype)
+    typeof FileSystemHandle === "undefined" ||
+    !("getFile" in FileSystemFileHandle.prototype)
   ) {
     throw new Error("This browser does not support the File System Access API");
   }
@@ -73,34 +76,43 @@ export async function uploadFiles({
       status.md5 = await calculateFileMd5(file);
       status.name = file.name;
 
+      if (fileIndex > 0 && rateLimitDelayMs) {
+        if (onProgress?.({ ...status, figshareStatus: "WAITING" })) return;
+        await new Promise((resolve) => setTimeout(resolve, rateLimitDelayMs));
+        if (onProgress?.({ ...status, figshareStatus: undefined })) return;
+      }
+
       // Step 1: Initiate upload
       const uploadInit = await patchedFetch<FigshareCreateFile>(
-          `https://api.figshare.com/v2/account/articles/${articleId}/files`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: {
-              name: file.name,
-              size: file.size,
-              md5: status.md5,
-            },
+        `https://api.figshare.com/v2/account/articles/${articleId}/files`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
+          body: {
+            name: file.name,
+            size: file.size,
+            md5: status.md5,
+          },
+        },
       );
 
       const uploadUrl = uploadInit.location;
 
-      const uploadLocation = await patchedFetch<FigshareInitiateUpload>(uploadUrl);
+      const uploadLocation =
+        await patchedFetch<FigshareInitiateUpload>(uploadUrl);
 
-      console.log({uploadInit, uploadLocation});
+      console.log({ uploadInit, uploadLocation });
 
       // Step 2: Get parts list from FigShare
-      const partsInfo = await patchedFetch<FigshareUploadStart>(uploadLocation.upload_url);
+      const partsInfo = await patchedFetch<FigshareUploadStart>(
+        uploadLocation.upload_url,
+      );
       status.figshareStatus = partsInfo.status;
       status.partCount = partsInfo.parts?.length ?? 0;
       const parts =
-          partsInfo.parts?.map((p: unknown) => p as FigshareFilePart) ?? [];
+        partsInfo.parts?.map((p: unknown) => p as FigshareFilePart) ?? [];
       if (onProgress?.({ ...status })) return;
 
       // Step 3: Upload parts
@@ -111,6 +123,10 @@ export async function uploadFiles({
 
         // Get byte range and slice file
         const blobPart = file.slice(part.startOffset, part.endOffset + 1);
+
+        if (partIndex > 0 && rateLimitDelayMs) {
+          await new Promise((resolve) => setTimeout(resolve, rateLimitDelayMs));
+        }
 
         // Upload part
         await fetch(partUrl, {
@@ -123,18 +139,17 @@ export async function uploadFiles({
 
       // Step 3: Complete upload
       await patchedFetch<Response>(
-          `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadLocation.id}`,
-          { method: "POST" },
-          {
-            returnRawResponse: true
-          }
-      )
-          .then(async (res) => {
-            if (!res.ok) {
-              console.error(await res.text());
-              throw new Error(`Error: ${res.status} ${res.statusText}`);
-            }
-          });
+        `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadLocation.id}`,
+        { method: "POST" },
+        {
+          returnRawResponse: true,
+        },
+      ).then(async (res) => {
+        if (!res.ok) {
+          console.error(await res.text());
+          throw new Error(`Error: ${res.status} ${res.statusText}`);
+        }
+      });
       status.figshareStatus = "completed";
       if (onProgress?.({ ...status })) return;
     } catch (e) {

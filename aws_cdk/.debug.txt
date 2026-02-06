@@ -1,0 +1,301 @@
+[INFO] Using AWS_PROFILE=sso
+AWS_PROFILE: sso
+AWS_ACCESS_KEY_ID[0:3]: undefined
+[INFO] Secret "bushel/figshare/oauth" already exists. Checking contents...
+[INFO] Secret "bushel/figshare/oauth" is up-to-date. No update needed.
+
+✨  Synthesis time: 13.43s
+
+bushel-Stack: start: Building 3665ad66e91dd3dc1c9ee00cdc45f2f6bab052c07bc932f5ec0a497d7a271499
+bushel-Stack: success: Built 3665ad66e91dd3dc1c9ee00cdc45f2f6bab052c07bc932f5ec0a497d7a271499
+bushel-Stack: start: Building 6c72787188c0559cd8c7889a311d9315b35b459984e3ab5fc3d790aabf3a00fe
+bushel-Stack: start: Publishing 3665ad66e91dd3dc1c9ee00cdc45f2f6bab052c07bc932f5ec0a497d7a271499:211125623194-eu-west-2
+bushel-Stack: success: Published 3665ad66e91dd3dc1c9ee00cdc45f2f6bab052c07bc932f5ec0a497d7a271499:211125623194-eu-west-2
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.21kB 0.0s done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/node:20-bullseye
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 ...
+
+#4 [auth] library/node:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 DONE 1.1s
+
+#5 [internal] load .dockerignore
+#5 transferring context:
+#5 transferring context: 989B 0.0s done
+#5 DONE 0.5s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/12] FROM docker.io/library/node:20-bullseye@sha256:524ea23a8396972454a13e1eace9ad028c7e9f153c11b2f734d2bed7b8e604c2
+#7 resolve docker.io/library/node:20-bullseye@sha256:524ea23a8396972454a13e1eace9ad028c7e9f153c11b2f734d2bed7b8e604c2 0.1s done
+#7 DONE 0.1s
+
+#8 [runner 1/8] FROM docker.io/library/node:20-slim@sha256:1b38aaddff63cd0d3a9b5b03863a71fd33ee62047dd2e915f494d96b4b9c18cc
+#8 resolve docker.io/library/node:20-slim@sha256:1b38aaddff63cd0d3a9b5b03863a71fd33ee62047dd2e915f494d96b4b9c18cc
+#8 resolve docker.io/library/node:20-slim@sha256:1b38aaddff63cd0d3a9b5b03863a71fd33ee62047dd2e915f494d96b4b9c18cc 0.1s done
+#8 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 2.08MB 0.2s done
+#6 DONE 0.2s
+
+#9 [builder  6/12] COPY postcss.config.mjs ./
+#9 CACHED
+
+#10 [builder  8/12] RUN npm ci
+#10 CACHED
+
+#11 [builder  3/12] COPY package.json package-lock.json ./
+#11 CACHED
+
+#12 [builder  4/12] COPY next.config.ts ./
+#12 CACHED
+
+#13 [builder  7/12] COPY tailwind.config.ts ./
+#13 CACHED
+
+#14 [builder  5/12] COPY tsconfig.json ./
+#14 CACHED
+
+#15 [builder  9/12] COPY public/ ./public
+#15 CACHED
+
+#16 [builder  2/12] WORKDIR /app
+#16 CACHED
+
+#17 [builder 10/12] COPY src/ ./src
+#17 CACHED
+
+#18 [builder 11/12] RUN npm run build
+#18 0.617 
+#18 0.617 > bushel@1.1.0 build
+#18 0.617 > next build
+#18 0.617 
+#18 2.104  ⚠ Invalid next.config.ts options detected: 
+#18 2.105  ⚠     Unrecognized key(s) in object: 'swcMinify'
+#18 2.105  ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+#18 2.126 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#18 2.126 This information is used to shape Next.js' roadmap and prioritize features.
+#18 2.126 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#18 2.126 https://nextjs.org/telemetry
+#18 2.127 
+#18 2.149    ▲ Next.js 16.0.10 (Turbopack)
+#18 2.149 
+#18 2.217  ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+#18 2.257    Creating an optimized production build ...
+#18 11.45  ✓ Compiled successfully in 7.6s
+#18 11.47    Running TypeScript ...
+#18 11.69 
+#18 11.69    We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+#18 11.69    The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+#18 11.69 
+#18 11.69    	- include was updated to add '.next/dev/types/**/*.ts'
+#18 11.69 
+#18 11.69    The following mandatory changes were made to your tsconfig.json:
+#18 11.69 
+#18 11.69    	- jsx was set to react-jsx (next.js uses the React automatic runtime)
+#18 11.69 
+#18 18.36 Failed to compile.
+#18 18.36 
+#18 18.36 ./next.config.ts:6:3
+#18 18.36 Type error: Object literal may only specify known properties, and 'swcMinify' does not exist in type 'NextConfig'.
+#18 18.36 
+#18 18.36 [0m [90m 4 |[39m   [90m/* config options here */[39m
+#18 18.36  [90m 5 |[39m   compress[33m:[39m [36mfalse[39m[33m,[39m
+#18 18.36 [31m[1m>[22m[39m[90m 6 |[39m   swcMinify[33m:[39m [36mfalse[39m[33m,[39m [90m// disable SWC minification[39m
+#18 18.36  [90m   |[39m   [31m[1m^[22m[39m
+#18 18.36  [90m 7 |[39m }[33m;[39m
+#18 18.36  [90m 8 |[39m
+#18 18.36  [90m 9 |[39m [36mexport[39m [36mdefault[39m nextConfig[33m;[39m[0m
+#18 18.51 Next.js build worker exited with code: 1 and signal: null
+#18 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [builder 11/12] RUN npm run build:
+18.36 Type error: Object literal may only specify known properties, and 'swcMinify' does not exist in type 'NextConfig'.
+18.36 
+18.36 [0m [90m 4 |[39m   [90m/* config options here */[39m
+18.36  [90m 5 |[39m   compress[33m:[39m [36mfalse[39m[33m,[39m
+18.36 [31m[1m>[22m[39m[90m 6 |[39m   swcMinify[33m:[39m [36mfalse[39m[33m,[39m [90m// disable SWC minification[39m
+18.36  [90m   |[39m   [31m[1m^[22m[39m
+18.36  [90m 7 |[39m }[33m;[39m
+18.36  [90m 8 |[39m
+18.36  [90m 9 |[39m [36mexport[39m [36mdefault[39m nextConfig[33m;[39m[0m
+18.51 Next.js build worker exited with code: 1 and signal: null
+------
+Dockerfile:21
+--------------------
+  19 |     
+  20 |     # 3. Build the Next.js app
+  21 | >>> RUN npm run build
+  22 |     
+  23 |     # Compile next.config.ts if needed
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/wtxex6rh5yw3dkpnk67t2f2dx
+bushel-Stack: fail: docker build --tag cdkasset-6c72787188c0559cd8c7889a311d9315b35b459984e3ab5fc3d790aabf3a00fe . exited with error code 1: #0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 1.21kB 0.0s done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/node:20-bullseye
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 ...
+
+#4 [auth] library/node:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 DONE 1.1s
+
+#5 [internal] load .dockerignore
+#5 transferring context:
+#5 transferring context: 989B 0.0s done
+#5 DONE 0.5s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/12] FROM docker.io/library/node:20-bullseye@sha256:524ea23a8396972454a13e1eace9ad028c7e9f153c11b2f734d2bed7b8e604c2
+#7 resolve docker.io/library/node:20-bullseye@sha256:524ea23a8396972454a13e1eace9ad028c7e9f153c11b2f734d2bed7b8e604c2 0.1s done
+#7 DONE 0.1s
+
+#8 [runner 1/8] FROM docker.io/library/node:20-slim@sha256:1b38aaddff63cd0d3a9b5b03863a71fd33ee62047dd2e915f494d96b4b9c18cc
+#8 resolve docker.io/library/node:20-slim@sha256:1b38aaddff63cd0d3a9b5b03863a71fd33ee62047dd2e915f494d96b4b9c18cc
+#8 resolve docker.io/library/node:20-slim@sha256:1b38aaddff63cd0d3a9b5b03863a71fd33ee62047dd2e915f494d96b4b9c18cc 0.1s done
+#8 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 2.08MB 0.2s done
+#6 DONE 0.2s
+
+#9 [builder  6/12] COPY postcss.config.mjs ./
+#9 CACHED
+
+#10 [builder  8/12] RUN npm ci
+#10 CACHED
+
+#11 [builder  3/12] COPY package.json package-lock.json ./
+#11 CACHED
+
+#12 [builder  4/12] COPY next.config.ts ./
+#12 CACHED
+
+#13 [builder  7/12] COPY tailwind.config.ts ./
+#13 CACHED
+
+#14 [builder  5/12] COPY tsconfig.json ./
+#14 CACHED
+
+#15 [builder  9/12] COPY public/ ./public
+#15 CACHED
+
+#16 [builder  2/12] WORKDIR /app
+#16 CACHED
+
+#17 [builder 10/12] COPY src/ ./src
+#17 CACHED
+
+#18 [builder 11/12] RUN npm run build
+#18 0.617 
+#18 0.617 > bushel@1.1.0 build
+#18 0.617 > next build
+#18 0.617 
+#18 2.104  ⚠ Invalid next.config.ts options detected: 
+#18 2.105  ⚠     Unrecognized key(s) in object: 'swcMinify'
+#18 2.105  ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+#18 2.126 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#18 2.126 This information is used to shape Next.js' roadmap and prioritize features.
+#18 2.126 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#18 2.126 https://nextjs.org/telemetry
+#18 2.127 
+#18 2.149    ▲ Next.js 16.0.10 (Turbopack)
+#18 2.149 
+#18 2.217  ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+#18 2.257    Creating an optimized production build ...
+#18 11.45  ✓ Compiled successfully in 7.6s
+#18 11.47    Running TypeScript ...
+#18 11.69 
+#18 11.69    We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+#18 11.69    The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+#18 11.69 
+#18 11.69    	- include was updated to add '.next/dev/types/**/*.ts'
+#18 11.69 
+#18 11.69    The following mandatory changes were made to your tsconfig.json:
+#18 11.69 
+#18 11.69    	- jsx was set to react-jsx (next.js uses the React automatic runtime)
+#18 11.69 
+#18 18.36 Failed to compile.
+#18 18.36 
+#18 18.36 ./next.config.ts:6:3
+#18 18.36 Type error: Object literal may only specify known properties, and 'swcMinify' does not exist in type 'NextConfig'.
+#18 18.36 
+#18 18.36 [0m [90m 4 |[39m   [90m/* config options here */[39m
+#18 18.36  [90m 5 |[39m   compress[33m:[39m [36mfalse[39m[33m,[39m
+#18 18.36 [31m[1m>[22m[39m[90m 6 |[39m   swcMinify[33m:[39m [36mfalse[39m[33m,[39m [90m// disable SWC minification[39m
+#18 18.36  [90m   |[39m   [31m[1m^[22m[39m
+#18 18.36  [90m 7 |[39m }[33m;[39m
+#18 18.36  [90m 8 |[39m
+#18 18.36  [90m 9 |[39m [36mexport[39m [36mdefault[39m nextConfig[33m;[39m[0m
+#18 18.51 Next.js build worker exited with code: 1 and signal: null
+#18 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [builder 11/12] RUN npm run build:
+18.36 Type error: Object literal may only specify known properties, and 'swcMinify' does not exist in type 'NextConfig'.
+18.36 
+18.36 [0m [90m 4 |[39m   [90m/* config options here */[39m
+18.36  [90m 5 |[39m   compress[33m:[39m [36mfalse[39m[33m,[39m
+18.36 [31m[1m>[22m[39m[90m 6 |[39m   swcMinify[33m:[39m [36mfalse[39m[33m,[39m [90m// disable SWC minification[39m
+18.36  [90m   |[39m   [31m[1m^[22m[39m
+18.36  [90m 7 |[39m }[33m;[39m
+18.36  [90m 8 |[39m
+18.36  [90m 9 |[39m [36mexport[39m [36mdefault[39m nextConfig[33m;[39m[0m
+18.51 Next.js build worker exited with code: 1 and signal: null
+------
+Dockerfile:21
+--------------------
+  19 |     
+  20 |     # 3. Build the Next.js app
+  21 | >>> RUN npm run build
+  22 |     
+  23 |     # Compile next.config.ts if needed
+--------------------
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/wtxex6rh5yw3dkpnk67t2f2dx
+
+NOTICES         (What's this? https://github.com/aws/aws-cdk/wiki/CLI-Notices)
+
+34892	CDK CLI will collect telemetry data on command usage starting at version 2.1100.0 (unless opted out)
+
+	Overview: We do not collect customer content and we anonymize the
+	          telemetry we do collect. See the attached issue for more
+	          information on what data is collected, why, and how to
+	          opt-out. Telemetry will NOT be collected for any CDK CLI
+	          version prior to version 2.1100.0 - regardless of
+	          opt-in/out. You can also preview the telemetry we will start
+	          collecting by logging it to a local file, by adding
+	          `--unstable=telemetry --telemetry-file=my/local/file` to any
+	          `cdk` command.
+
+	Affected versions: cli: ^2.0.0
+
+	More information at: https://github.com/aws/aws-cdk/issues/34892
+
+
+If you don’t want to see a notice anymore, use "cdk acknowledge <id>". For example, "cdk acknowledge 34892".
+Failed to build asset 6c72787188c0559cd8c7889a311d9315b35b459984e3ab5fc3d790aabf3a00fe

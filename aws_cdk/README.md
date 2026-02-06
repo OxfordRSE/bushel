@@ -25,6 +25,8 @@ This directory (`aws_cdk/`) defines the AWS infrastructure needed to deploy the 
 
 ## Usage
 
+Log in to AWS if necessary using e.g. `aws configure sso`.
+
 ### Deploy a Stack
 
 ```bash

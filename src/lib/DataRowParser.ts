@@ -67,7 +67,7 @@ export class DataError extends Error {
     if (from instanceof Error) {
       this.stack = from.stack;
     }
-    if (from) console.error(from);
+    if (from) console.error(from instanceof Error ? from.message : from);
   }
 }
 
@@ -314,7 +314,11 @@ export class DataRowParser {
               .map((v) => v.trim())
               .filter((v) => v.length > 0);
 
-            if (field.field_type === "url" && (!field.internal_settings.is_array && !field.settings?.is_multiple)) {
+            if (
+              field.field_type === "url" &&
+              !field.internal_settings.is_array &&
+              !field.settings?.is_multiple
+            ) {
               // If the field is a URL but not an array, we need to ensure it's a single URL
               if (value.length > 1) {
                 throw new DataError(
@@ -325,7 +329,7 @@ export class DataRowParser {
             }
           } else if (field.field_type === "date") {
             // Parse date, if it fails, throw an error
-            let date_string = input.replace(/^'/, "");  // We support ' to indicate non-Excel date values
+            let date_string = input.replace(/^'/, ""); // We support ' to indicate non-Excel date values
             const bce = /^-/.test(date_string);
             if (bce) {
               // If the date is BCE, we need to convert it to a negative year
