@@ -169,6 +169,7 @@ export class BushelStack extends Stack {
         maxHealthyPercent: 200,
         minHealthyPercent: 50,
         enableECSManagedTags: true,
+        propagateTags: ecs.PropagatedTagSource.SERVICE,
         enableExecuteCommand: !this.production,
         circuitBreaker: {
           rollback: true,
