@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       headers: HeadersInit = {}
   ): {
     url: typeof url;
-    headers: Record<string, string> & { Authorization: `token ${string}` };
+    headers: Record<string, string>;
   } => {
     // Convert headers to object
     if (Array.isArray(headers)) {
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     return {
       url: is_URL ? as_URL : as_URL.toString(),
-      headers: {...headers, Authorization: `token ${token}`}
+      headers: {...headers}
     };
   }, [token, impersonationTarget]);
 
@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       headers: HeadersInit = {}
   ): {
     body: typeof body & { impersonate?: number };
-    headers: Record<string, string> & { Authorization: `token ${string}` };
+    headers: Record<string, string> & { Authorization: `token ${string}`, 'Content-Type': string };
   } => {
     // Convert headers to object
     if (Array.isArray(headers)) {
@@ -76,7 +76,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         ...body ?? {},
         impersonate: impersonationTarget ? impersonationTarget.id : undefined,
       },
-      headers: {...headers, Authorization: `token ${token}`},
+      headers: {
+        ...headers, 
+        Authorization: `token ${token}`,
+        'Content-Type': 'application/json'
+      },
     }
   }, [token, impersonationTarget]);
 
