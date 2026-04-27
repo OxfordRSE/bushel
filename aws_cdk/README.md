@@ -10,6 +10,7 @@ This directory (`aws_cdk/`) defines the AWS infrastructure needed to deploy the 
 - **Required Context Values**:
     - `projectName`: Logical name for this deployment (e.g., `bushel-staging`, `bushel-production`).
     - `deploymentDomain`: The domain name to use for DNS and HTTPS certificates (e.g., `staging.bushel.example.com`).
+    - `FIGSHARE_CLIENT_ID` and `FIGSHARE_CLIENT_SECRET` must be included either as context or environment variables.
 
   These must be passed as context parameters via `-c` or set in your `cdk.json`.
 
@@ -25,7 +26,8 @@ This directory (`aws_cdk/`) defines the AWS infrastructure needed to deploy the 
 
 ## Usage
 
-Log in to AWS if necessary using e.g. `aws configure sso`.
+Log in to AWS if necessary using e.g. `aws configure sso` (if necessary) then `aws sso login --profile matt-sso` 
+(or whatever your profile name is).
 
 ### Deploy a Stack
 
