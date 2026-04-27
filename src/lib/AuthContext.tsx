@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     const is_URL = url instanceof URL;
     const as_URL = is_URL ? url : new URL(url);
-    as_URL.searchParams.set('token', token || '');
+    as_URL.searchParams.set('access_token', token || '');
     if (impersonationTarget) {
       as_URL.searchParams.set('impersonate', impersonationTarget.id.toString());
     }
