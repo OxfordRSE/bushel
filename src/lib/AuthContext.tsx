@@ -102,12 +102,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Patch POST requests to support Auth and Impersonation
   const patchPOST = useCallback(
     (
+      url: string | URL,
       body: object | null = {},
       headers: HeadersInit = {},
     ): {
       body: typeof body & { impersonate?: number };
       headers: Record<string, string> & {
-        Authorization: `token ${string}`;
+        Authorization?: `token ${string}`;
         "Content-Type": string;
       };
     } => {
@@ -118,6 +119,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (headers instanceof Headers) {
         headers = Object.fromEntries(headers.entries());
       }
+      
+      // Check if this is a relative URL (internal API route)
+      const urlString = url instanceof URL ? url.href : url;
+      const isRelative = urlString.startsWith('/');
+      
+      // For internal API routes, don't add Figshare auth params
+      // The backend proxies handle authentication via cookies
+      if (isRelative) {
+        return {
+          body: body ?? {},
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+          },
+        };
+      }
+      
+      // For external Figshare URLs, add Authorization header and impersonation
       return {
         body: {
           ...(body ?? {}),
@@ -141,7 +160,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     ): Promise<T> => {
       let query;
       if (options?.method === "POST") {
-        const { body, headers } = patchPOST(options?.body, options?.headers);
+        const { body, headers } = patchPOST(url, options?.body, options?.headers);
         query = fetch(url, { ...options, body: JSON.stringify(body), headers });
       } else {
         const { url: patchedUrl, headers } = patchGET(url, options?.headers);
