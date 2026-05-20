@@ -306,7 +306,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
           if (cancelled) return cancel();
 
           const result = await fetch<FigshareArticleCreateResponse>(
-            "https://api.figshare.com/v2/account/articles",
+            "/api/account/articles",
             {
               method: "POST",
               body: upload_row.data,
@@ -380,7 +380,7 @@ export function UploadDataProvider({ children }: { children: ReactNode }) {
         setUploadState((prev) => ({ ...prev, status: "uploading" }));
 
         const result = await fetch<FigshareArticleCreateResponse>(
-          "https://api.figshare.com/v2/account/articles",
+          "/api/account/articles",
           {
             method: "POST",
             body: upload_row.data,

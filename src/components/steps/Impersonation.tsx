@@ -32,7 +32,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
     queryKey: ['users', token, reloadKey],
     queryFn: async ({ pageParam }) => {
       try {
-        return await fetch<FigshareUser[]>(`https://api.figshare.com/v2/account/institution/accounts?page_size=${limit}&page=${pageParam}`);
+        return await fetch<FigshareUser[]>(`/api/institution/accounts?page_size=${limit}&page=${pageParam}`);
       } catch(e) {
         console.error(e);
         throw new Error('Failed to fetch user list');
@@ -57,7 +57,7 @@ export default function ImpersonationStep({ openByDefault = false, onSelect }: {
       setEmailMatch(null);
       return;
     }
-    fetch<FigshareUser[]>(`https://api.figshare.com/v2/account/institution/accounts?email=${search}`)
+    fetch<FigshareUser[]>(`/api/institution/accounts?email=${search}`)
         .then(arr => setEmailMatch(arr[0] || null))
         .catch(() => setEmailMatch(null));
   }, [fetch, search, token]);

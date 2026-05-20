@@ -84,7 +84,7 @@ export async function uploadFiles({
 
       // Step 1: Initiate upload
       const uploadInit = await patchedFetch<FigshareCreateFile>(
-        `https://api.figshare.com/v2/account/articles/${articleId}/files`,
+        `/api/account/articles/${articleId}/files`,
         {
           method: "POST",
           headers: {
@@ -139,7 +139,7 @@ export async function uploadFiles({
 
       // Step 3: Complete upload
       await patchedFetch<Response>(
-        `https://api.figshare.com/v2/account/articles/${articleId}/files/${uploadLocation.id}`,
+        `/api/account/articles/${articleId}/files/${uploadLocation.id}`,
         { method: "POST" },
         {
           returnRawResponse: true,

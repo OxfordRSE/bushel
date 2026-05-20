@@ -26,7 +26,7 @@ export default function GroupPicker({ openByDefault = false, onSelect }: { openB
   const {data: allGroups, isFetching, error} = useQuery({
     queryKey: ['groups', token, reloadKey, impersonationTarget?.id],
     queryFn: async () => {
-      return await fetch<FigshareGroup[]>(`https://api.figshare.com/v2/account/institution/groups`);
+      return await fetch<FigshareGroup[]>(`/api/institution/groups`);
     },
     enabled: !!token,
   });

@@ -31,7 +31,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const fields = useQuery<FigshareCustomField[]>({
     queryKey: ['fields', group?.id, token],
     queryFn: async () => {
-      return await fetch<FigshareCustomField[]>(`https://api.figshare.com/v2/account/institution/custom_fields?group_id=${group?.id}`);
+      return await fetch<FigshareCustomField[]>(`/api/institution/custom_fields?group_id=${group?.id}`);
     },
     enabled: !!group
   });
@@ -40,7 +40,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const user_articles = useInfiniteQuery<FigshareArticle[]>({
     queryKey: ['my_articles', group?.id, token],
     queryFn: async ({pageParam}) => {
-      return await fetch<FigshareArticle[]>(`https://api.figshare.com/v2/account/articles?page=${pageParam ?? 1}&page_size=${limit}`)
+      return await fetch<FigshareArticle[]>(`/api/account/articles?page=${pageParam ?? 1}&page_size=${limit}`)
           .then(res => res.filter(article => article.group_id === group?.id));
     },
     initialPageParam: 1,
@@ -55,7 +55,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const public_articles = useInfiniteQuery<FigshareArticle[]>({
     queryKey: ['group_articles', group?.id, token],
     queryFn: async ({pageParam}) => {
-      return await fetch<FigshareArticle[]>(`https://api.figshare.com/v2/articles?page=${pageParam ?? 1}&page_size=${limit}&group=${group?.id}&institution=${targetUser?.institution_id}`);
+      return await fetch<FigshareArticle[]>(`/api/articles?page=${pageParam ?? 1}&page_size=${limit}&group=${group?.id}&institution=${targetUser?.institution_id}`);
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) => {
@@ -69,7 +69,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const item_types = useQuery<FigshareItemType[]>({
     queryKey: ['item_types', group?.id, token],
     queryFn: async () => {
-      return await fetch<FigshareItemType[]>(`https://api.figshare.com/v2/item_types?group_id=${group?.id}`);
+      return await fetch<FigshareItemType[]>(`/api/item_types?group_id=${group?.id}`);
     },
     enabled: !!group
   });

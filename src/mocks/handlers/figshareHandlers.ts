@@ -573,6 +573,113 @@ export const figshareHandlers = [
     return HttpResponse.json(users[0]);
   }),
 
+  // Proxy endpoints (same-origin /api/* routes)
+  http.get("/api/institution/accounts", ({ request }) => {
+    // Simulate pagination
+    const url = new URL(request.url);
+    const offset = Math.max(Number(url.searchParams.get("page")), 1);
+    const limit = Number(url.searchParams.get("page_size")) || 10;
+    const paginatedUsers = users.slice(limit * (offset - 1), offset * limit);
+    return HttpResponse.json(paginatedUsers);
+  }),
+
+  http.get("/api/institution/groups", () => {
+    return HttpResponse.json(groups);
+  }),
+
+  http.get("/api/institution/custom_fields", ({ request }) => {
+    const url = new URL(request.url);
+    const groupId = Number(url.searchParams.get("group_id"));
+    const filteredFields =
+      groupId === groups[0].id
+        ? customFields.filter((field) => field.id > 100000)
+        : groupId === 1
+          ? customFields.slice(0, 100)
+          : customFields.filter(
+              (field) =>
+                /^Group\d+_Field\d+$/.test(field.name) &&
+                field.name.startsWith(`Group${groupId}`),
+            );
+    console.debug(`Filtered fields for group ${groupId}:`, filteredFields);
+    return HttpResponse.json(filteredFields);
+  }),
+
+  http.get("/api/account/articles", ({ request }) => {
+    const url = new URL(request.url);
+    const offset = Math.max(Number(url.searchParams.get("page")), 1);
+    const limit = Number(url.searchParams.get("page_size")) || 10;
+    const paginatedArticles = articles.slice(
+      limit * (offset - 1),
+      offset * limit,
+    );
+    return HttpResponse.json(paginatedArticles);
+  }),
+
+  http.post("/api/account/articles", async ({ request }) => {
+    const body = (await request.json()) as Partial<FigshareArticle>;
+    if (!body?.title)
+      return HttpResponse.json(
+        { message: "Title is required" },
+        { status: 400 },
+      );
+    const id = 900000 + Math.floor(Math.random() * 100000);
+    const now = new Date().toUTCString();
+    return HttpResponse.json(
+      {
+        entity_id: id,
+        location: `https://api.figshare.com/v2/account/articles/${id}`,
+        warnings: [],
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.get("/api/articles", ({ request }) => {
+    const url = new URL(request.url);
+    const offset = Math.max(Number(url.searchParams.get("page")), 1);
+    const limit = Number(url.searchParams.get("page_size")) || 10;
+    const groupId = Number(url.searchParams.get("group"));
+    const groupArticles = articles.filter(
+      (article) => article.group_id === groupId,
+    );
+    const paginatedArticles = groupArticles.slice(
+      limit * (offset - 1),
+      offset * limit,
+    );
+    return HttpResponse.json(paginatedArticles);
+  }),
+
+  http.get("/api/account/licenses", () => {
+    return HttpResponse.json(licenses);
+  }),
+
+  http.get("/api/account/categories", () => {
+    return HttpResponse.json(categories);
+  }),
+
+  http.get("/api/item_types", ({ request }) => {
+    const url = new URL(request.url);
+    const group_id = Number(url.searchParams.get("group_id"));
+    return group_id === groups[0].id
+      ? HttpResponse.json(itemTypes)
+      : HttpResponse.json(itemTypes.slice(2));
+  }),
+
+  http.post("/api/account/articles/:articleId/files", async () => {
+    const randomId = Math.floor(Math.random() * 1000000);
+    return HttpResponse.json(
+      {
+        location: `https://api.figshare.com/v2/upload/${randomId}`,
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.post("/api/account/articles/:articleId/files/:fileId", async () => {
+    return HttpResponse.json();
+  }),
+
+  // Original Figshare endpoints (for server-side proxy calls)
   http.get(
     "https://api.figshare.com/v2/account/institution/accounts",
     ({ request }) => {
