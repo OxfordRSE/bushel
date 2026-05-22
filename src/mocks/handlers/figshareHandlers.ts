@@ -665,14 +665,58 @@ export const figshareHandlers = [
       : HttpResponse.json(itemTypes.slice(2));
   }),
 
-  http.post("/api/account/articles/:articleId/files", async () => {
+  http.post("/api/account/articles/:articleId/files", async ({ params }) => {
     const randomId = Math.floor(Math.random() * 1000000);
     return HttpResponse.json(
       {
-        location: `https://api.figshare.com/v2/upload/${randomId}`,
+        location: `/api/account/articles/${params.articleId}/files/${randomId}`,
       },
       { status: 201 },
     );
+  }),
+
+  http.get("/api/account/articles/:articleId/files/:fileId", async (req) => {
+    return HttpResponse.json({
+      upload_token: `upload-token-${req.params.fileId}`,
+      upload_url: `/api/upload/fup-eu-west-1.figshare.com/upload/upload-token-${req.params.fileId}`,
+      status: "PENDING",
+      preview_state: "PENDING",
+      viewer_type: "none",
+      is_attached_to_public_version: false,
+      id: Number(req.params.fileId),
+      name: "mockfile.txt",
+      size: 123456,
+      is_link_only: false,
+      download_url: "mock_value",
+      supplied_md5: "mock_value",
+      computed_md5: "mock_value",
+      mimetype: "mock_value",
+    });
+  }),
+
+  http.get("/api/upload/:host/upload/:uploadToken", async (req) => {
+    return HttpResponse.json({
+      token: req.params.uploadToken,
+      name: "mockfile.txt",
+      size: 123456,
+      md5: "mockedmd5hash",
+      status: "PENDING",
+      parts: Array.from({ length: 3 }).map((_, idx) => ({
+        partNo: idx + 1,
+        startOffset: idx * 4096,
+        endOffset: (idx + 1) * 4096 - 1,
+        status: "PENDING",
+        locked: false,
+      })),
+    });
+  }),
+
+  http.put("/api/upload/:host/upload/:uploadToken/:partNo", async () => {
+    const wait = new Promise((resolve) =>
+      setTimeout(resolve, Math.random() * 1000),
+    );
+    await wait;
+    return HttpResponse.json();
   }),
 
   http.post("/api/account/articles/:articleId/files/:fileId", async () => {
@@ -794,39 +838,41 @@ export const figshareHandlers = [
   // Initiate file upload (POST /account/articles/:articleId/files)
   http.post(
     "https://api.figshare.com/v2/account/articles/:articleId/files",
-    async () => {
+    async ({ params }) => {
       const randomId = Math.floor(Math.random() * 1000000);
       return HttpResponse.json(
         {
-          location: `https://api.figshare.com/v2/upload/${randomId}`,
+          location: `https://api.figshare.com/v2/account/articles/${params.articleId}/files/${randomId}`,
         },
         { status: 201 },
       );
     },
   ),
 
-  // Fetch parts info (GET /upload/:uploadToken)
-  http.get("https://api.figshare.com/v2/upload/:uploadToken", async (req) => {
-    return HttpResponse.json({
-      upload_token: req.params.uploadToken,
-      upload_url: `https://upload.figshare.com/${req.params.uploadToken}`,
-      status: "PENDING",
-      preview_state: "PENDING",
-      viewer_type: "none",
-      is_attached_to_public_version: false,
-      id: Math.floor(Math.random() * 1000000),
-      name: "mockfile.txt",
-      size: 123456,
-      is_link_only: false,
-      download_url: "mock_value",
-      supplied_md5: "mock_value",
-      computed_md5: "mock_value",
-      mimetype: "mock_value",
-    });
-  }),
+  http.get(
+    "https://api.figshare.com/v2/account/articles/:articleId/files/:fileId",
+    async (req) => {
+      return HttpResponse.json({
+        upload_token: `upload-token-${req.params.fileId}`,
+        upload_url: `https://fup-eu-west-1.figshare.com/upload/upload-token-${req.params.fileId}`,
+        status: "PENDING",
+        preview_state: "PENDING",
+        viewer_type: "none",
+        is_attached_to_public_version: false,
+        id: Number(req.params.fileId),
+        name: "mockfile.txt",
+        size: 123456,
+        is_link_only: false,
+        download_url: "mock_value",
+        supplied_md5: "mock_value",
+        computed_md5: "mock_value",
+        mimetype: "mock_value",
+      });
+    },
+  ),
 
   // Fetch parts info (GET /upload/:uploadToken)
-  http.get("https://upload.figshare.com/:uploadToken", async (req) => {
+  http.get("https://fup-eu-west-1.figshare.com/upload/:uploadToken", async (req) => {
     return HttpResponse.json({
       token: req.params.uploadToken,
       name: "mockfile.txt",
@@ -845,7 +891,7 @@ export const figshareHandlers = [
 
   // Upload file part (PUT /upload/:uploadToken/:partNo)
   http.put(
-    "https://upload.figshare.com/upload/:uploadToken/:partNo",
+    "https://fup-eu-west-1.figshare.com/upload/:uploadToken/:partNo",
     async () => {
       const wait = new Promise((resolve) =>
         setTimeout(resolve, Math.random() * 1000),

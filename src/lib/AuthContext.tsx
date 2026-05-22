@@ -103,14 +103,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const patchPOST = useCallback(
     (
       url: string | URL,
-      body: object | null = {},
+      body: object | null | undefined,
       headers: HeadersInit = {},
     ): {
-      body: typeof body & { impersonate?: number };
-      headers: Record<string, string> & {
-        Authorization?: `token ${string}`;
-        "Content-Type": string;
-      };
+      body: (typeof body & { impersonate?: number }) | undefined;
+      headers: Record<string, string>;
     } => {
       // Convert headers to object
       if (Array.isArray(headers)) {
@@ -128,24 +125,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // The backend proxies handle authentication via cookies
       if (isRelative) {
         return {
-          body: body ?? {},
-          headers: {
-            ...headers,
-            "Content-Type": "application/json",
-          },
+          body: body ?? undefined,
+          headers:
+            body == null
+              ? { ...headers }
+              : {
+                  ...headers,
+                  "Content-Type": "application/json",
+                },
         };
       }
       
       // For external Figshare URLs, add Authorization header and impersonation
+      const patchedBody = body == null
+        ? undefined
+        : {
+            ...body,
+            impersonate: impersonationTarget ? impersonationTarget.id : undefined,
+          };
+
       return {
-        body: {
-          ...(body ?? {}),
-          impersonate: impersonationTarget ? impersonationTarget.id : undefined,
-        },
+        body: patchedBody,
         headers: {
           ...headers,
           Authorization: `token ${token}`,
-          "Content-Type": "application/json",
+          ...(patchedBody ? { "Content-Type": "application/json" } : {}),
         },
       };
     },
@@ -161,7 +165,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       let query;
       if (options?.method === "POST") {
         const { body, headers } = patchPOST(url, options?.body, options?.headers);
-        query = fetch(url, { ...options, body: JSON.stringify(body), headers });
+        const { body: _originalBody, ...restOptions } = options;
+        const requestInit: RequestInit = {
+          ...(restOptions as RequestInit),
+          headers,
+        };
+
+        if (body !== undefined) {
+          requestInit.body = JSON.stringify(body);
+        }
+
+        query = fetch(url, requestInit);
       } else {
         const { url: patchedUrl, headers } = patchGET(url, options?.headers);
         query = fetch(patchedUrl, { ...(options as RequestInit), headers });

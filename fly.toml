@@ -7,7 +7,7 @@ app = 'bushel'
 primary_region = 'ams'
 
 [env]
-  FIGSHARE_CLIENT_ID = "eb3c515da1edaddfadbd383c7790ce69e42115a9"
+  FIGSHARE_CLIENT_ID = "113c3afb9e8b267757fc7c10d0ddadad05e90d0d"
 
 [http_service]
   internal_port = 3000

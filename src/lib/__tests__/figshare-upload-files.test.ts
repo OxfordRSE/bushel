@@ -79,9 +79,9 @@ describe("uploadFiles", () => {
     patchedFetch = vi
       .fn()
       // Step 1: initiate upload
-      .mockResolvedValueOnce({ location: "https://upload.location/init" })
-      // Step 2: get upload location
-      .mockResolvedValueOnce({ upload_url: "https://upload.parts", id: 123 })
+      .mockResolvedValueOnce({ location: "/api/account/articles/42/files/123" })
+      // Step 2: get file upload details
+      .mockResolvedValueOnce({ upload_url: "/api/upload/fup-eu-west-1.figshare.com/upload/upload-token", id: 123 })
       // Step 3: get parts list
       .mockResolvedValueOnce({
         status: "uploading",
@@ -116,6 +116,14 @@ describe("uploadFiles", () => {
     ).toHaveBeenCalledWith("test.txt");
     expect((fileHandle as FileSystemFileHandle).getFile).toHaveBeenCalled();
     expect(patchedFetch).toHaveBeenCalledTimes(4);
+    expect(patchedFetch).toHaveBeenNthCalledWith(
+      2,
+      "/api/account/articles/42/files/123",
+    );
+    expect(global.fetch).toHaveBeenCalledWith("/api/upload/fup-eu-west-1.figshare.com/upload/upload-token/1", {
+      method: "PUT",
+      body: expect.any(Blob),
+    });
     expect(progressUpdates.some((s) => s.figshareStatus === "completed")).toBe(
       true,
     );

@@ -103,8 +103,6 @@ export async function uploadFiles({
       const uploadLocation =
         await patchedFetch<FigshareInitiateUpload>(uploadUrl);
 
-      console.log({ uploadInit, uploadLocation });
-
       // Step 2: Get parts list from FigShare
       const partsInfo = await patchedFetch<FigshareUploadStart>(
         uploadLocation.upload_url,
