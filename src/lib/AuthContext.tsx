@@ -67,30 +67,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (headers instanceof Headers) {
         headers = Object.fromEntries(headers.entries());
       }
-      
+
       // Check if this is a relative URL (internal API route)
-      const urlString = url instanceof URL ? url.href : url;
-      const isRelative = urlString.startsWith('/');
-      
-      // For internal API routes, don't add Figshare auth params
-      // The backend proxies handle authentication via cookies
-      if (isRelative) {
-        return {
-          url: url,
-          headers: { ...headers },
-        };
-      }
-      
-      // For external Figshare URLs, add query param authentication
       const is_URL = url instanceof URL;
-      const as_URL = is_URL ? url : new URL(url);
-      as_URL.searchParams.set("access_token", token || "");
+      const urlString = is_URL ? url.href : url;
+      const isRelative = urlString.startsWith("/");
+      const as_URL = is_URL
+        ? url
+        : new URL(
+            // Relative URL strings can't be used to construct URLs, so fake a domain
+            isRelative ? `http://localhost${url}` : url,
+          );
+
       if (impersonationTarget) {
         as_URL.searchParams.set(
           "impersonate",
           impersonationTarget.id.toString(),
         );
       }
+
+      // For internal API routes, don't add Figshare auth params
+      // The backend proxies handle authentication via cookies
+      if (isRelative) {
+        return {
+          url: as_URL.href.replace("http://localhost", ""),
+          headers: { ...headers },
+        };
+      }
+
+      // For external Figshare URLs, add query param authentication
+      as_URL.searchParams.set("access_token", token || "");
       return {
         url: is_URL ? as_URL : as_URL.toString(),
         headers: { ...headers },
@@ -116,18 +122,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (headers instanceof Headers) {
         headers = Object.fromEntries(headers.entries());
       }
-      
+
       // Check if this is a relative URL (internal API route)
       const urlString = url instanceof URL ? url.href : url;
-      const isRelative = urlString.startsWith('/');
-      
+      const isRelative = urlString.startsWith("/");
+
+      // Add impersonation
+      const patchedBody =
+        body == null
+          ? undefined
+          : {
+              ...body,
+              impersonate: impersonationTarget
+                ? impersonationTarget.id
+                : undefined,
+            };
+
       // For internal API routes, don't add Figshare auth params
       // The backend proxies handle authentication via cookies
       if (isRelative) {
         return {
-          body: body ?? undefined,
+          body: patchedBody ?? undefined,
           headers:
-            body == null
+            patchedBody == null
               ? { ...headers }
               : {
                   ...headers,
@@ -135,15 +152,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 },
         };
       }
-      
-      // For external Figshare URLs, add Authorization header and impersonation
-      const patchedBody = body == null
-        ? undefined
-        : {
-            ...body,
-            impersonate: impersonationTarget ? impersonationTarget.id : undefined,
-          };
 
+      // For external Figshare URLs, add Authorization header
       return {
         body: patchedBody,
         headers: {
@@ -164,7 +174,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     ): Promise<T> => {
       let query;
       if (options?.method === "POST") {
-        const { body, headers } = patchPOST(url, options?.body, options?.headers);
+        const { body, headers } = patchPOST(
+          url,
+          options?.body,
+          options?.headers,
+        );
         const { body: _originalBody, ...restOptions } = options;
         const requestInit: RequestInit = {
           ...(restOptions as RequestInit),
