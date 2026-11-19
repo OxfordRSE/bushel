@@ -378,7 +378,7 @@ export class DataRowParser {
                   warning: `Unrecognized keys in ${header}: ${message}`,
                 });
               }
-              value = tmp;
+              value = tmp as ParsedCellContentType;
             } catch (e) {
               const err = e as ZodError;
               const message = err.issues.map((i) => i.message).join(". ");
