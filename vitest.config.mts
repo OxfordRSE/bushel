@@ -8,7 +8,6 @@ export default defineConfig({
     setupFiles: ['vitest.setup.ts'],
     environment: 'jsdom',
     exclude: [
-      "aws_cdk/**",
       "**/node_modules/**",
       "**/dist/**",
       ".next/**"
