@@ -1,5 +1,5 @@
 # === Build Stage ===
-FROM node:20-bullseye AS builder
+FROM node:22-bookworm AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN npm run build
  RUN npx esbuild next.config.ts --outfile=next.config.js --platform=node --format=cjs
 
 # === Runtime Stage ===
-FROM node:20-slim AS runner
+FROM node:22-slim AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production

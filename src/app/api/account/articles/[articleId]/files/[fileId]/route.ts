@@ -11,6 +11,22 @@ import {
 
 initMocks();
 
+function buildArticleFileUrl(
+  articleId: string,
+  fileId: string,
+  searchParams: URLSearchParams,
+) {
+  const figshareUrl = new URL(
+    `https://api.figshare.com/v2/account/articles/${articleId}/files/${fileId}`,
+  );
+
+  searchParams.forEach((value, key) => {
+    figshareUrl.searchParams.set(key, value);
+  });
+
+  return figshareUrl.toString();
+}
+
 /**
  * Proxy endpoint for Figshare's /v2/account/articles/:articleId/files/:fileId
  * 
@@ -19,7 +35,7 @@ initMocks();
  * properly support. Therefore, we proxy through our backend.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ articleId: string; fileId: string }> }
 ) {
   const token = (await cookies()).get('figshare_token')?.value;
@@ -31,13 +47,13 @@ export async function GET(
   const { articleId, fileId } = await params;
 
   const res = await fetch(
-    `https://api.figshare.com/v2/account/articles/${articleId}/files/${fileId}`,
+    buildArticleFileUrl(articleId, fileId, request.nextUrl.searchParams),
     {
       headers: {
         Accept: 'application/json',
         Authorization: `token ${token}`,
       },
-    }
+    },
   );
 
   if (!res.ok) {
@@ -62,7 +78,19 @@ export async function GET(
   if (data.upload_url && typeof data.upload_url === 'string') {
     try {
       const uploadUrl = new URL(data.upload_url);
-      data.upload_url = `/api/upload/${uploadUrl.host}${uploadUrl.pathname}`;
+      const proxyUploadUrl = new URL(
+        `/api/upload/${uploadUrl.host}${uploadUrl.pathname}`,
+        request.nextUrl.origin,
+      );
+
+      uploadUrl.searchParams.forEach((value, key) => {
+        proxyUploadUrl.searchParams.set(key, value);
+      });
+      request.nextUrl.searchParams.forEach((value, key) => {
+        proxyUploadUrl.searchParams.set(key, value);
+      });
+
+      data.upload_url = `${proxyUploadUrl.pathname}${proxyUploadUrl.search}`;
     } catch {
       // Leave the original value untouched if Figshare changes the shape.
     }
@@ -85,7 +113,7 @@ export async function POST(
 
   // Make the request to Figshare API with Authorization header
   const res = await fetch(
-    `https://api.figshare.com/v2/account/articles/${articleId}/files/${fileId}`,
+    buildArticleFileUrl(articleId, fileId, request.nextUrl.searchParams),
     {
       method: 'POST',
       headers: {
@@ -93,7 +121,7 @@ export async function POST(
         Authorization: `token ${token}`,
       },
       redirect: 'manual',
-    }
+    },
   );
 
   if (!res.ok) {

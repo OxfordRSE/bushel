@@ -31,9 +31,6 @@ build
 **/yarn-error.log*
 **/.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-aws_cdk/.env.local
-
 # vercel
 **/.vercel
 
@@ -51,9 +48,9 @@ aws_cdk/.env.local
 .idea/dataSources
 .idea/dataSources.local.xml
 
-# flyctl launch added from aws_cdk/.gitignore
-aws_cdk/
-
 fixtures/
 
 fly.toml
+
+# env files
+**/.env*.local

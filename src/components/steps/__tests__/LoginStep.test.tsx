@@ -68,7 +68,7 @@ describe('LoginStep', () => {
   });
 
   it('Handles login error', async () => {
-    (loginWithFigShare as vi.Mock).mockRejectedValueOnce(new Error('Boom'));
+    vi.mocked(loginWithFigShare).mockRejectedValueOnce(new Error('Boom'));
 
     render(
       <Providers>

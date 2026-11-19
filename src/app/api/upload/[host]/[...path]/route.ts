@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { initMocks } from '@/mocks/init-mocks';
 import {
   figshareErrorResponse,
@@ -9,15 +9,25 @@ import {
 
 initMocks();
 
-function buildUploadUrl(host: string, path: string[]) {
-  return `https://${host}/${path.join('/')}`;
+function buildUploadUrl(
+  host: string,
+  path: string[],
+  searchParams: URLSearchParams,
+) {
+  const url = new URL(`https://${host}/${path.join('/')}`);
+
+  searchParams.forEach((value, key) => {
+    url.searchParams.set(key, value);
+  });
+
+  return url.toString();
 }
 
 /**
  * Proxy endpoint for Figshare's regional upload hosts.
  */
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ host: string; path: string[] }> },
 ) {
   const token = (await cookies()).get('figshare_token')?.value;
@@ -27,12 +37,15 @@ export async function GET(
   }
 
   const { host, path } = await params;
-  const res = await fetch(buildUploadUrl(host, path), {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `token ${token}`,
+  const res = await fetch(
+    buildUploadUrl(host, path, request.nextUrl.searchParams),
+    {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `token ${token}`,
+      },
     },
-  });
+  );
 
   if (!res.ok) {
     return figshareErrorResponse(res, 'get upload parts');
@@ -55,7 +68,7 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ host: string; path: string[] }> },
 ) {
   const token = (await cookies()).get('figshare_token')?.value;
@@ -76,11 +89,14 @@ export async function PUT(
     headers['Content-Type'] = contentType;
   }
 
-  const res = await fetch(buildUploadUrl(host, path), {
-    method: 'PUT',
-    headers,
-    body,
-  });
+  const res = await fetch(
+    buildUploadUrl(host, path, request.nextUrl.searchParams),
+    {
+      method: 'PUT',
+      headers,
+      body,
+    },
+  );
 
   if (!res.ok) {
     return figshareErrorResponse(res, 'upload file part');

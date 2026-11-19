@@ -28,6 +28,17 @@ type UploadFilesOptions = {
   onProgress?: (status: UploadFileStatus) => void | boolean;
 };
 
+function buildUploadPartUrl(uploadUrl: string, partNo: number): string {
+  const parsedUrl = new URL(uploadUrl, 'http://localhost');
+  const pathname = `${parsedUrl.pathname.replace(/\/$/, '')}/${partNo}`;
+
+  if (uploadUrl.startsWith('/')) {
+    return `${pathname}${parsedUrl.search}`;
+  }
+
+  return new URL(`${pathname}${parsedUrl.search}`, parsedUrl.origin).toString();
+}
+
 async function calculateFileMd5(file: File): Promise<string> {
   const hasher = await createMD5();
   const chunkSize = 1024 * 1024; // 1MB
@@ -117,7 +128,10 @@ export async function uploadFiles({
       for (let partIndex = 0; partIndex < parts.length; partIndex++) {
         const part = parts[partIndex];
 
-        const partUrl = `${uploadLocation.upload_url}/${part.partNo}`;
+        const partUrl = buildUploadPartUrl(
+          uploadLocation.upload_url,
+          part.partNo,
+        );
 
         // Get byte range and slice file
         const blobPart = file.slice(part.startOffset, part.endOffset + 1);

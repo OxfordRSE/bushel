@@ -13,43 +13,51 @@ Bushel is a streamlined tool for uploading archaeological datasets to [FigShare]
 
 ## 🧱 Tech Stack
 
-- [Next.js 15](https://nextjs.org)
-- [React 19](https://react.dev)
-- [Tailwind CSS](https://tailwindcss.com)
-- [shadcn/ui](https://ui.shadcn.com)
-- [Prettier + Tailwind plugin](https://github.com/tailwindlabs/prettier-plugin-tailwindcss)
-- [ESLint](https://nextjs.org/docs/app/building-your-application/linting)
-- TypeScript, Radix UI, Sonner toasts, and more
-
-## ✨ Note on Bun
-
-We do not recommend using Bun during development. Bun does **not** play well with MSW (Mock Service Worker), which is used to simulate the FigShare API locally. Use `npm` or `pnpm` instead for a smooth dev experience.
+- [Next.js 16](https://nextjs.org) and [React 19](https://react.dev)
+- [Tailwind CSS](https://tailwindcss.com) and [shadcn/ui](https://ui.shadcn.com) (Radix UI)
+- [Zod](https://zod.dev) for validating spreadsheet data
+- [Vitest](https://vitest.dev), Testing Library and [MSW](https://mswjs.io) for tests and API mocking
+- TypeScript throughout
 
 ## 🚀 Getting Started
 
-Install dependencies:
+Install dependencies and start the development server:
 
 ```bash
 npm install
-# or
-pnpm install
-```
-
-Start the development server:
-
-```bash
 npm run dev
-# or
-pnpm dev
 ```
 
 Visit `http://localhost:3000` to view the app.
 
-### Environment Variables
+In development, the FigShare API is mocked with MSW and login is faked, so you
+don't need FigShare credentials or an account. Set `MOCK_LOGIN_OAUTH_FAIL=true`
+to simulate a failed login.
 
-Bushel requires FigShare OAuth credentials when running locally or deploying. Set
-`FIGSHARE_CLIENT_ID` and `FIGSHARE_CLIENT_SECRET` in your environment (or a
-`.env.local` file) so the app can authenticate with FigShare.
+We do not recommend Bun: it doesn't play well with MSW. Use `npm`, which is what
+the lockfile, Docker build and CI use.
+
+### Checks
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm test            # vitest
+npm run build       # production build
+```
+
+CI runs all three on every pull request and push to `main`.
+
+### Running against real FigShare
+
+To run against the real FigShare API, build in production mode:
+
+```bash
+npm run build && npm start
+```
+
+You need a FigShare OAuth application. Set `FIGSHARE_CLIENT_ID` and
+`FIGSHARE_CLIENT_SECRET` in your environment or in `.env.local` (gitignored). The
+application's redirect URI must be `<your origin>/api/auth/callback`.
 
 ## 🧪 Development Notes
 
@@ -70,13 +78,24 @@ Bushel requires FigShare OAuth credentials when running locally or deploying. Se
 
 ## 📦 Deployment
 
-Bushel can run on any platform that supports Next.js. The recommended route is the
-[AWS CDK setup](aws_cdk/README.md) included in this repository, which provisions
-Secrets Manager, Fargate and other resources. You will need your FigShare
-credentials (`FIGSHARE_CLIENT_ID`/`FIGSHARE_CLIENT_SECRET`) available when deploying.
+Bushel runs on [Fly.io](https://fly.io) as the `bushel` app (<https://bushel.fly.dev>),
+using the `Dockerfile` and `fly.toml` in this repository.
 
-The app can also be deployed to any other hosting provider that supports Next.js applications
-by following the deployment instructions for that provider.
+- **Automatic deploys:** every push to `main` deploys through
+  `.github/workflows/fly-deploy.yml`. This needs a `FLY_API_TOKEN` repository secret.
+- **Configuration:** `FIGSHARE_CLIENT_ID` is set in `fly.toml`. The client secret is a
+  Fly secret:
+
+  ```bash
+  fly secrets set FIGSHARE_CLIENT_SECRET=... -a bushel
+  ```
+
+- **Manual deploys:** `fly deploy` deploys your local working tree, including
+  uncommitted changes. Prefer merging to `main`, so production matches the repository.
+- **Checking what's live:** `fly releases -a bushel`.
+
+Machines stop when idle (`min_machines_running = 0`), so the first request after a
+quiet period is slower.
 
 ## License
 
