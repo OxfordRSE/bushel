@@ -23,13 +23,13 @@ describe('selectValuesCheck', () => {
 
   it('skips if parser.data is null', async () => {
     const parser = { data: null, fields: [] };
-    await selectValuesCheck.run(parser as never, emit, {});
+    await selectValuesCheck.run(parser as never, emit, {} as never);
     expect(emit).toHaveBeenCalledWith({ status: 'skipped', details: 'No data to check' });
   });
 
   it('passes if values match options', async () => {
     const parser = makeParser({ discipline: 'Archaeology' }, ['Archaeology']);
-    await selectValuesCheck.run(parser as never, emit, {});
+    await selectValuesCheck.run(parser as never, emit, {} as never);
     expect(emit).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'success' })
     );
@@ -37,7 +37,7 @@ describe('selectValuesCheck', () => {
 
   it('coerces fuzzy match', async () => {
     const parser = makeParser({ discipline: 'archaeology' }, ['Archaeology']);
-    await selectValuesCheck.run(parser as never, emit, {});
+    await selectValuesCheck.run(parser as never, emit, {} as never);
     expect(parser.data!.discipline).toBe('Archaeology');
     expect(emit).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'in_progress', details: expect.stringMatching(/coerced/i) })
@@ -46,7 +46,7 @@ describe('selectValuesCheck', () => {
 
   it('fails on invalid value', async () => {
     const parser = makeParser({ discipline: 'Zoology' }, ['Archaeology']);
-    await selectValuesCheck.run(parser as never, emit, {});
+    await selectValuesCheck.run(parser as never, emit, {} as never);
     const failure = emit.mock.calls.find(([arg]) => arg.status === 'failed');
     expect(failure?.[0].error).toBeInstanceOf(DataError);
     expect(failure?.[0].error.message).toMatch(/Zoology is not a valid option/);
@@ -54,7 +54,7 @@ describe('selectValuesCheck', () => {
 
   it('works for array fields with fuzzy + invalid mix', async () => {
     const parser = makeParser({ discipline: ['archaeology', 'Zoology'] }, ['Archaeology'], true);
-    await selectValuesCheck.run(parser as never, emit, {});
+    await selectValuesCheck.run(parser as never, emit, {} as never);
 
     // Fuzzy should coerce first element
     // @ts-expect-error don't care about type in tests
