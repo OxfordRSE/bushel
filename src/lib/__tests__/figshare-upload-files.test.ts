@@ -129,6 +129,40 @@ describe("uploadFiles", () => {
     );
   });
 
+  it("preserves query params when building upload part urls", async () => {
+    patchedFetch = vi
+      .fn()
+      .mockResolvedValueOnce({ location: "/api/account/articles/42/files/123" })
+      .mockResolvedValueOnce({
+        upload_url:
+          "/api/upload/fup-eu-west-1.figshare.com/upload/upload-token?impersonate=99",
+        id: 123,
+      })
+      .mockResolvedValueOnce({
+        status: "uploading",
+        parts: [{ partNo: 1, startOffset: 0, endOffset: 10 }],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: vi.fn(),
+      });
+
+    await uploadFiles({
+      files: ["test.txt"],
+      rootDir: rootDir as FileSystemDirectoryHandle,
+      articleId: 42,
+      patchedFetch,
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/upload/fup-eu-west-1.figshare.com/upload/upload-token/1?impersonate=99",
+      {
+        method: "PUT",
+        body: expect.any(Blob),
+      },
+    );
+  });
+
   it("uploads files successfully with rate limit", async () => {
     const progressUpdates: UploadFileStatus[] = [];
 

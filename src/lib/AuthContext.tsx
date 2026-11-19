@@ -112,6 +112,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       body: object | null | undefined,
       headers: HeadersInit = {},
     ): {
+      url: string | URL;
       body: (typeof body & { impersonate?: number }) | undefined;
       headers: Record<string, string>;
     } => {
@@ -126,6 +127,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Check if this is a relative URL (internal API route)
       const urlString = url instanceof URL ? url.href : url;
       const isRelative = urlString.startsWith("/");
+      let patchedUrl: string | URL = url;
 
       // Add impersonation
       const patchedBody =
@@ -141,7 +143,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // For internal API routes, don't add Figshare auth params
       // The backend proxies handle authentication via cookies
       if (isRelative) {
+        if (patchedBody == null && impersonationTarget) {
+          const internalUrl = new URL(`http://localhost${urlString}`);
+          internalUrl.searchParams.set(
+            "impersonate",
+            impersonationTarget.id.toString(),
+          );
+          patchedUrl = internalUrl.href.replace("http://localhost", "");
+        }
+
         return {
+          url: patchedUrl,
           body: patchedBody ?? undefined,
           headers:
             patchedBody == null
@@ -155,6 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // For external Figshare URLs, add Authorization header
       return {
+        url,
         body: patchedBody,
         headers: {
           ...headers,
@@ -174,11 +187,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     ): Promise<T> => {
       let query;
       if (options?.method === "POST") {
-        const { body, headers } = patchPOST(
-          url,
-          options?.body,
-          options?.headers,
-        );
+        const {
+          url: patchedUrl,
+          body,
+          headers,
+        } = patchPOST(url, options?.body, options?.headers);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { body: _originalBody, ...restOptions } = options;
         const requestInit: RequestInit = {
           ...(restOptions as RequestInit),
@@ -189,7 +203,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           requestInit.body = JSON.stringify(body);
         }
 
-        query = fetch(url, requestInit);
+        query = fetch(patchedUrl, requestInit);
       } else {
         const { url: patchedUrl, headers } = patchGET(url, options?.headers);
         query = fetch(patchedUrl, { ...(options as RequestInit), headers });
